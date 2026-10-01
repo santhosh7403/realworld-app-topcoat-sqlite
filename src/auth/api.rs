@@ -13,7 +13,8 @@ use topcoat::{
 
 /// Look up the current session → user (or None)
 pub async fn current_user(cx: &Cx) -> Result<Option<crate::models::UserPreview>> {
-    let db = try_get_db(cx).ok_or_else(|| anyhow::anyhow!("db pool not available"))?;
+    let db = try_get_db(cx)
+        .ok_or_else(|| topcoat::Error::msg(anyhow::anyhow!("db pool not available")))?;
 
     let Some(token_hash) = session::token_hash(cx).await? else {
         return Ok(None);

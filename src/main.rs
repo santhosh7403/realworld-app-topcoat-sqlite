@@ -2,9 +2,10 @@ use sqlx::sqlite::SqlitePoolOptions;
 use topcoat::{
     Result,
     asset::{AssetBundle, RouterBuilderAssetExt},
+    context::Cx,
     cookie::RouterBuilderCookieExt,
     router::{Router, RouterBuilderDiscoverExt, Slot, href, layout, page},
-    runtime::RouterBuilderRuntimeExt,
+    runtime::{RouterBuilderRuntimeExt, signal},
     session::{RouterBuilderSessionExt, SessionConfig},
     view::{View, component, view},
 };
@@ -112,10 +113,11 @@ async fn root_layout(slot: Slot<'_>) -> Result<impl View> {
 // ---------------------------------------------------------------------------
 
 #[component]
-async fn navbar() -> Result<impl View> {
+async fn navbar(cx: &Cx) -> Result<impl View> {
     // Stub: pretend user is logged out. Change to `true` to see logged-in menu.
     let logged_in = true;
     let username = "demo_user";
+    let user_in = signal(cx, || None::<crate::models::UserPreview>);
 
     Ok(view! {
         <nav class="sticky top-0 z-10 shadow-md">

@@ -65,15 +65,9 @@ fn login_view(cx: &Cx, error: Option<String>) -> impl View {
     let passwd_visible = signal(cx, || false);
 
     view! {
-        <div
-            class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-60"
-        >
-            <div
-                class="block rounded-lg bg-white dark:bg-gray-800 w-2/5 p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] z-70"
-            >
-                <h5
-                    class="mb-5 text-xl font-medium leading-tight text-gray-800 dark:text-gray-200"
-                >
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-60">
+            <div class="block rounded-lg bg-white dark:bg-gray-800 w-2/5 p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] z-70">
+                <h5 class="mb-5 text-xl font-medium leading-tight text-gray-800 dark:text-gray-200">
                     " Please login with your credentials."
                 </h5>
 
@@ -108,27 +102,19 @@ fn login_view(cx: &Cx, error: Option<String>) -> impl View {
                             class="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                             id="password"
                             name="password"
-                            :type=$(if passwd_visible.get() {
-                                "text"
-                            } else {
-                                "password"
-                            })
+                            :type=$(if passwd_visible.get() { "text" } else { "password" })
                             placeholder="password"
                             required=""
                         >
                         <span
                             class="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer text-gray-500 dark:text-gray-400"
-                            @click=$(|_e: Event| passwd_visible.set(
-                                    !passwd_visible.get(),
-                                ))
+                            @click=$(|_e: Event| passwd_visible.set(!passwd_visible.get()))
                         >
-                            <i
-                                :class=$(if passwd_visible.get() {
-                                    "far fa-eye"
-                                } else {
-                                    "far fa-eye-slash"
-                                })
-                            ></i>
+                            <i :class=$(if passwd_visible.get() {
+                                "far fa-eye"
+                            } else {
+                                "far fa-eye-slash"
+                            })></i>
                         </span>
                     </div>
 
@@ -209,7 +195,9 @@ async fn verify_credentials(cx: &Cx, username: &str, password: &str) -> Result<i
 async fn persist_session(cx: &Cx, user_id: i64, session: &session::Session) -> Result<()> {
     let token_hash = hex::encode(&*session.token_hash);
     let expires_at: chrono::DateTime<chrono::Utc> = session.expires_at.into();
-    let db = try_get_db(cx).ok_or_else(|| anyhow::anyhow!("db pool not available"))?;
+    let db = try_get_db(cx)
+        .ok_or_else(|| topcoat::Error::msg(anyhow::anyhow!("db pool not available")))?;
+    // let db = try_get_db(cx).ok_or_else(|| anyhow::anyhow!("db pool not available"))?;
 
     sqlx::query("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)")
         .bind(token_hash)
@@ -218,20 +206,4 @@ async fn persist_session(cx: &Cx, user_id: i64, session: &session::Session) -> R
         .execute(db)
         .await?;
     Ok(())
-}
-
-#[route(POST)]
-pub async fn logout(cx: &Cx) -> Result<SeeOther> {
-    let db = try_get_db(cx).ok_or_else(|| anyhow::anyhow!("db pool not available"))?;
-
-    // stop() clears the cookie and returns the hash so we can delete the DB row
-    if let Some(token_hash) = session::stop(cx).await? {
-        sqlx::query("DELETE FROM sessions WHERE token_hash = ?")
-            .bind(token_hash.as_ref())
-            .execute(db)
-            .await
-            .map_err(|e| topcoat::Error::from(e))?;
-    }
-
-    Ok(see_other(href!(crate::Views::home::home).resolve(cx)))
 }

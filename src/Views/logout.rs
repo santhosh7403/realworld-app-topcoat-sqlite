@@ -16,7 +16,8 @@ use topcoat::{
 
 #[route(POST "/logout")]
 pub async fn logout(cx: &Cx) -> Result<SeeOther> {
-    let db = try_get_db(cx).ok_or_else(|| anyhow::anyhow!("db pool not available"))?;
+    let db = try_get_db(cx)
+        .ok_or_else(|| topcoat::Error::msg(anyhow::anyhow!("db pool not available")))?;
 
     // stop() clears the cookie and returns the hash so we can delete the DB row
     if let Some(token_hash) = session::stop(cx).await? {
