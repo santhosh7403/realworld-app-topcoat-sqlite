@@ -12,7 +12,7 @@ use topcoat::{
     view::{View, view},
 };
 
-use crate::Views::home::try_get_db;
+use crate::{models::UserPreview, views::home::try_get_db};
 // use sqlx::SqlitePool;
 
 // use crate::auth;

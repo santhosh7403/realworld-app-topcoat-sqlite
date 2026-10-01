@@ -1,4 +1,4 @@
-use crate::Views::home::try_get_db;
+use crate::views::home::try_get_db;
 use topcoat::{
     Result,
     context::Cx,
@@ -28,5 +28,5 @@ pub async fn logout(cx: &Cx) -> Result<SeeOther> {
             .map_err(|e| topcoat::Error::from(e))?;
     }
 
-    Ok(see_other(href!(crate::Views::home::home).resolve(cx)))
+    Ok(see_other(href!(crate::views::home::home).resolve(cx)))
 }

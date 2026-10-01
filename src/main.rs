@@ -13,8 +13,8 @@ use topcoat::{
 mod database;
 mod models;
 use crate::database::AppState;
-mod Views;
 mod auth;
+mod views;
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
@@ -133,7 +133,8 @@ async fn navbar(cx: &Cx) -> Result<impl View> {
                         </span>
                     </a>
 
-                    if logged_in {
+                    if user_in.get().is_some() {
+                    // if logged_in {
                         // New Article
                         <a href="/new-article" class="navitem group">
                             <i class="fa-solid fa-square-plus navitem-icon"></i>
@@ -157,7 +158,8 @@ async fn navbar(cx: &Cx) -> Result<impl View> {
                         >
                             <i class="fa-regular fa-circle-user navitem-icon"></i>
                             <span class="text-xs md:text-base mt-1 font-semibold">
-                                (username)
+                                (user_in.get().unwrap().username)
+                                // (username)
                             </span>
                         </a>
 
@@ -168,7 +170,7 @@ async fn navbar(cx: &Cx) -> Result<impl View> {
                         // </a>
                         <form
                             method="POST"
-                            action=(href!(crate::Views::logout::logout))
+                            action=(href!(crate::views::logout::logout))
                         >
                             <button>
                                 <i class="fa-solid fa-right-from-bracket navitem-icon"></i>

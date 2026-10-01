@@ -262,7 +262,7 @@ async fn editor_edit(cx: &Cx) -> Result<impl View> {
     let slug = path_param::<Slug>(cx);
     let state = app_context::<crate::AppState>(cx);
 
-    let article = crate::Views::article::fetch_article(&state.db, slug, None)
+    let article = crate::views::article::fetch_article(&state.db, slug, None)
         .await
         .ok_or_not_found()?;
     // .ok_or_not_found();

@@ -1,4 +1,4 @@
-use crate::Views::home::try_get_db;
+use crate::views::home::try_get_db;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use topcoat::{
     Result,
