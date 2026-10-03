@@ -12,7 +12,7 @@ use topcoat::{
 
 mod database;
 mod models;
-use crate::database::AppState;
+use crate::{database::AppState, models::UserPreview};
 mod auth;
 mod views;
 
@@ -47,7 +47,10 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 // ---------------------------------------------------------------------------
 
 #[layout("/")]
-async fn root_layout(slot: Slot<'_>) -> Result<impl View> {
+async fn root_layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
+    let current_user = crate::auth::current_user(cx).await?;
+    println!("At layout current_user is : {:#?}", current_user);
+    let user_in = signal(cx, || current_user);
     Ok(view! {
         <!DOCTYPE html>
         <html lang="en" class="dark">
@@ -100,7 +103,7 @@ async fn root_layout(slot: Slot<'_>) -> Result<impl View> {
             <body
                 class="bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col"
             >
-                navbar()
+                navbar(user_in: &user_in)
                 <main class="flex-1 container mx-auto px-4 py-8">(slot)</main>
                 footer()
             </body>
@@ -113,11 +116,14 @@ async fn root_layout(slot: Slot<'_>) -> Result<impl View> {
 // ---------------------------------------------------------------------------
 
 #[component]
-async fn navbar(cx: &Cx) -> Result<impl View> {
+async fn navbar(
+    cx: &Cx,
+    user_in: &topcoat::runtime::Signal<Option<UserPreview>>,
+) -> Result<impl View> {
     // Stub: pretend user is logged out. Change to `true` to see logged-in menu.
     let logged_in = true;
     let username = "demo_user";
-    let user_in = signal(cx, || None::<crate::models::UserPreview>);
+    // let user_in = signal(cx, || None::<crate::models::UserPreview>);
 
     Ok(view! {
         <nav class="sticky top-0 z-10 shadow-md">

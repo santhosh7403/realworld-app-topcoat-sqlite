@@ -19,6 +19,8 @@ pub async fn current_user(cx: &Cx) -> Result<Option<crate::models::UserPreview>>
     let Some(token_hash) = session::token_hash(cx).await? else {
         return Ok(None);
     };
+    let encoded_hash = hex::encode(*token_hash);
+    println!("At current_user - token_hash : {:?}", token_hash);
 
     let row = sqlx::query_as::<_, (i64, String, i64)>(
         r#"
@@ -28,22 +30,29 @@ pub async fn current_user(cx: &Cx) -> Result<Option<crate::models::UserPreview>>
         WHERE s.token_hash = ?
         "#,
     )
-    .bind(token_hash.as_ref()) // TokenHash derefs to [u8; 32]
+    // .bind(token_hash.as_ref()) // TokenHash derefs to [u8; 32]
+    .bind(encoded_hash) // TokenHash derefs to [u8; 32]
     .fetch_optional(db)
     .await
     .map_err(|e| topcoat::Error::from(e))?;
 
-    let Some((id, username, expires_at)) = row else {
-        return Ok(None);
-    };
-
-    // Reject expired sessions
-    if unix_to_system_time(expires_at) <= SystemTime::now() {
-        // Optionally delete the expired row here
-        return Ok(None);
+    if let Some((id, username, expires_at)) = row {
+        let expires_at = std::time::UNIX_EPOCH + std::time::Duration::from_secs(expires_at as u64);
+        if expires_at < std::time::SystemTime::now() {
+            return Ok(None);
+        } else {
+            println!("Triggered current_user : {:#?}", username.clone());
+            Ok(Some(crate::models::UserPreview { id, username }))
+        }
+    } else {
+        Ok(None)
     }
 
-    Ok(Some(crate::models::UserPreview { id, username }))
+    // Reject expired sessions
+    // if unix_to_system_time(expires_at) <= SystemTime::now() {
+    //     // Optionally delete the expired row here
+    //     return Ok(None);
+    // }
 }
 
 // fn pool(cx: &Cx) -> &SqlitePool {

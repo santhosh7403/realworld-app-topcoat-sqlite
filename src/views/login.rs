@@ -194,7 +194,12 @@ async fn verify_credentials(cx: &Cx, username: &str, password: &str) -> Result<i
 
 async fn persist_session(cx: &Cx, user_id: i64, session: &session::Session) -> Result<()> {
     let token_hash = hex::encode(&*session.token_hash);
-    let expires_at: chrono::DateTime<chrono::Utc> = session.expires_at.into();
+    // let expires_at: chrono::DateTime<chrono::Utc> = session.expires_at.into();
+    let expires_at = session
+        .expires_at
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
     let db = try_get_db(cx)
         .ok_or_else(|| topcoat::Error::msg(anyhow::anyhow!("db pool not available")))?;
     // let db = try_get_db(cx).ok_or_else(|| anyhow::anyhow!("db pool not available"))?;
