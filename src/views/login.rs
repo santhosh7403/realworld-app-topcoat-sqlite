@@ -1,3 +1,4 @@
+use crate::database::db;
 use serde::Deserialize;
 use topcoat::{
     Result,
@@ -12,7 +13,7 @@ use topcoat::{
     view::{View, view},
 };
 
-use crate::{models::UserPreview, views::home::try_get_db};
+use crate::models::UserPreview;
 // use sqlx::SqlitePool;
 
 // use crate::auth;
@@ -65,9 +66,15 @@ fn login_view(cx: &Cx, error: Option<String>) -> impl View {
     let passwd_visible = signal(cx, || false);
 
     view! {
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-60">
-            <div class="block rounded-lg bg-white dark:bg-gray-800 w-2/5 p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] z-70">
-                <h5 class="mb-5 text-xl font-medium leading-tight text-gray-800 dark:text-gray-200">
+        <div
+            class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-60"
+        >
+            <div
+                class="block rounded-lg bg-white dark:bg-gray-800 w-2/5 p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] z-70"
+            >
+                <h5
+                    class="mb-5 text-xl font-medium leading-tight text-gray-800 dark:text-gray-200"
+                >
                     " Please login with your credentials."
                 </h5>
 
@@ -102,19 +109,27 @@ fn login_view(cx: &Cx, error: Option<String>) -> impl View {
                             class="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                             id="password"
                             name="password"
-                            :type=$(if passwd_visible.get() { "text" } else { "password" })
+                            :type=$(if passwd_visible.get() {
+                                "text"
+                            } else {
+                                "password"
+                            })
                             placeholder="password"
                             required=""
                         >
                         <span
                             class="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer text-gray-500 dark:text-gray-400"
-                            @click=$(|_e: Event| passwd_visible.set(!passwd_visible.get()))
+                            @click=$(|_e: Event| passwd_visible.set(
+                                    !passwd_visible.get(),
+                                ))
                         >
-                            <i :class=$(if passwd_visible.get() {
-                                "far fa-eye"
-                            } else {
-                                "far fa-eye-slash"
-                            })></i>
+                            <i
+                                :class=$(if passwd_visible.get() {
+                                    "far fa-eye"
+                                } else {
+                                    "far fa-eye-slash"
+                                })
+                            ></i>
                         </span>
                     </div>
 
@@ -157,12 +172,10 @@ fn login_view(cx: &Cx, error: Option<String>) -> impl View {
 // ---------------------------------------------------------------------------
 
 async fn verify_credentials(cx: &Cx, username: &str, password: &str) -> Result<i64, ()> {
-    // Example: look up user and check password hash.
-    // Replace with your real query + argon2 / bcrypt verify.
     // let db = topcoat::context::try_app_context::<AppState>(cx)
     //     .map(|s| &s.db)
     //     .unwrap();
-    let db = try_get_db(cx).ok_or(())?;
+    // let db = try_get_db(cx).ok_or(())?;
 
     // let row: Option<(i64, String)> =
     //     sqlx::query_as("SELECT id, password FROM users WHERE username = ?")
@@ -171,9 +184,9 @@ async fn verify_credentials(cx: &Cx, username: &str, password: &str) -> Result<i
     //         .await
     //         .map_err(|_| ())?;
     let row: Option<(i64, String)> =
-        sqlx::query_as("SELECT id, password FROM users WHERE username = ?")
+        sqlx::query_as::<_, (i64, String)>("SELECT id, password FROM users WHERE username = ?")
             .bind(username)
-            .fetch_optional(db) // use the actual pool variable
+            .fetch_optional(db(cx)) // use the actual pool variable
             .await
             .map_err(|_| ())?;
 
@@ -200,15 +213,15 @@ async fn persist_session(cx: &Cx, user_id: i64, session: &session::Session) -> R
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
-    let db = try_get_db(cx)
-        .ok_or_else(|| topcoat::Error::msg(anyhow::anyhow!("db pool not available")))?;
+    // let db = try_get_db(cx)
+    // .ok_or_else(|| topcoat::Error::msg(anyhow::anyhow!("db pool not available")))?;
     // let db = try_get_db(cx).ok_or_else(|| anyhow::anyhow!("db pool not available"))?;
 
     sqlx::query("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)")
         .bind(token_hash)
         .bind(user_id)
         .bind(expires_at)
-        .execute(db)
+        .execute(db(cx))
         .await?;
     Ok(())
 }

@@ -1,5 +1,6 @@
-use crate::views::home::try_get_db;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+// use crate::views::home::try_get_db;
+use crate::database::db;
+
 use topcoat::{
     Result,
     context::Cx,
@@ -13,14 +14,14 @@ use topcoat::{
 
 /// Look up the current session → user (or None)
 pub async fn current_user(cx: &Cx) -> Result<Option<crate::models::UserPreview>> {
-    let db = try_get_db(cx)
-        .ok_or_else(|| topcoat::Error::msg(anyhow::anyhow!("db pool not available")))?;
+    // let db = try_get_db(cx)
+    //     .ok_or_else(|| topcoat::Error::msg(anyhow::anyhow!("db pool not available")))?;
 
     let Some(token_hash) = session::token_hash(cx).await? else {
         return Ok(None);
     };
     let encoded_hash = hex::encode(*token_hash);
-    println!("At current_user - token_hash : {:?}", token_hash);
+    // println!("At current_user - token_hash : {:?}", token_hash);
 
     let row = sqlx::query_as::<_, (i64, String, i64)>(
         r#"
@@ -32,7 +33,7 @@ pub async fn current_user(cx: &Cx) -> Result<Option<crate::models::UserPreview>>
     )
     // .bind(token_hash.as_ref()) // TokenHash derefs to [u8; 32]
     .bind(encoded_hash) // TokenHash derefs to [u8; 32]
-    .fetch_optional(db)
+    .fetch_optional(db(cx))
     .await
     .map_err(|e| topcoat::Error::from(e))?;
 
@@ -41,7 +42,7 @@ pub async fn current_user(cx: &Cx) -> Result<Option<crate::models::UserPreview>>
         if expires_at < std::time::SystemTime::now() {
             return Ok(None);
         } else {
-            println!("Triggered current_user : {:#?}", username.clone());
+            // println!("Triggered current_user : {:#?}", username.clone());
             Ok(Some(crate::models::UserPreview { id, username }))
         }
     } else {
@@ -59,14 +60,14 @@ pub async fn current_user(cx: &Cx) -> Result<Option<crate::models::UserPreview>>
 //     app_context(cx)
 // }
 
-/// Convert SystemTime → unix seconds for storage
-pub fn system_time_to_unix(t: SystemTime) -> i64 {
-    t.duration_since(UNIX_EPOCH)
-        .unwrap_or(Duration::ZERO)
-        .as_secs() as i64
-}
+// / Convert SystemTime → unix seconds for storage
+// pub fn system_time_to_unix(t: SystemTime) -> i64 {
+//     t.duration_since(UNIX_EPOCH)
+//         .unwrap_or(Duration::ZERO)
+//         .as_secs() as i64
+// }
 
-/// Convert unix seconds → SystemTime
-pub fn unix_to_system_time(secs: i64) -> SystemTime {
-    UNIX_EPOCH + Duration::from_secs(secs as u64)
-}
+// / Convert unix seconds → SystemTime
+// pub fn unix_to_system_time(secs: i64) -> SystemTime {
+//     UNIX_EPOCH + Duration::from_secs(secs as u64)
+// }

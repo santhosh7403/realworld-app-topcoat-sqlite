@@ -3,10 +3,9 @@
 //!        POST /article/comments/{id}/delete  (delete comment)
 
 use serde::Deserialize;
-use sqlx::SqlitePool;
 use topcoat::{
     Result,
-    context::{Cx, try_app_context},
+    context::Cx,
     router::{
         content::Form,
         error::{bad_request, not_found},
@@ -15,24 +14,21 @@ use topcoat::{
     view::{View, component, view},
 };
 
-use crate::{
-    AppState,
-    models::article::{Article, UserPreview},
-}; // adjust paths to your crate
+use crate::models::article::{Article, UserPreview}; // adjust paths to your crate
 
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
 
-#[derive(Clone, Debug)]
-pub struct Comment {
-    pub id: i64,
-    pub article: String,
-    pub username: String,
-    pub body: String,
-    pub created_at: String,
-    pub user_image: Option<String>,
-}
+// #[derive(Clone, Debug)]
+// pub struct Comment {
+//     pub id: i64,
+//     pub article: String,
+//     pub username: String,
+//     pub body: String,
+//     pub created_at: String,
+//     pub user_image: Option<String>,
+// }
 
 // Path param: /article/{slug}
 path_param!(slug: String, error = not_found);
@@ -59,16 +55,17 @@ async fn article_page(cx: &Cx) -> Result<impl View> {
     } else {
         None
     };
-    let db = try_app_context::<AppState>(cx)
-        .map(|s| &s.db)
-        .ok_or_else(|| bad_request("database not configured"))?;
+    // let db = try_app_context::<AppState>(cx)
+    //     .map(|s| &s.db)
+    //     .ok_or_else(|| bad_request("database not configured"))?;
 
-    let article = fetch_article(db, &slug, user_id)
+    let article = crate::models::article::Article::fetch_article(cx, &slug, user_id)
         .await
         .map_err(|_| not_found())?;
-    // .ok_or_else(|| not_found())?;
 
-    let comments = fetch_comments(db, &slug).await.unwrap_or_default();
+    let comments = crate::models::comment::fetch_comments(__cx, &slug)
+        .await
+        .unwrap_or_default();
 
     let is_owner = logged_user
         .as_ref()
@@ -236,7 +233,7 @@ async fn author_user_icon(user: UserPreview) -> Result<impl View> {
 #[component]
 async fn comment_section(
     slug: String,
-    comments: Vec<Comment>,
+    comments: Vec<crate::models::comment::Comment>,
     logged_user: Option<String>,
 ) -> Result<impl View> {
     let post_action = format!("/article/{}/comments", slug);
@@ -283,7 +280,10 @@ async fn comment_section(
 }
 
 #[component]
-async fn comment_item(comment: Comment, logged_user: Option<String>) -> Result<impl View> {
+async fn comment_item(
+    comment: crate::models::comment::Comment,
+    logged_user: Option<String>,
+) -> Result<impl View> {
     let can_delete = logged_user
         .as_ref()
         .map(|u| u == &comment.username)
@@ -361,11 +361,7 @@ async fn post_comment(
         return Err(topcoat::router::error::bad_request("comment too short").into());
     }
 
-    let db = try_app_context::<AppState>(cx)
-        .map(|s| &s.db)
-        .ok_or_else(|| bad_request("database not configured"))?;
-
-    insert_comment(db, &slug, user_id, form.body.trim())
+    crate::models::comment::insert_comment(cx, &slug, user_id, form.body.trim())
         .await
         .map_err(|e| bad_request(format!("could not post comment: {e}")))?;
 
@@ -386,12 +382,12 @@ async fn delete_comment_route(cx: &Cx) -> Result<impl topcoat::router::response:
         return Err(topcoat::router::error::unauthorized().into());
     };
 
-    let db = try_app_context::<AppState>(cx)
-        .map(|s| &s.db)
-        .ok_or_else(|| bad_request("database not configured"))?;
+    // let db = try_app_context::<AppState>(cx)
+    //     .map(|s| &s.db)
+    //     .ok_or_else(|| bad_request("database not configured"))?;
 
     // Need article slug for redirect — look it up, or fall back to home
-    let slug = delete_comment(db, id, user_id)
+    let slug = crate::models::comment::delete_comment(cx, id, user_id)
         .await
         .map_err(|e| bad_request(format!("could not delete: {e}")))?;
 
@@ -406,125 +402,70 @@ async fn delete_comment_route(cx: &Cx) -> Result<impl topcoat::router::response:
 // DB helpers
 // ---------------------------------------------------------------------------
 
-pub async fn fetch_article(
-    db: &SqlitePool,
-    slug: &str,
-    user_id: Option<i64>,
-) -> Result<Article, sqlx::Error> {
-    sqlx::query!(
-            r#"
-    SELECT
-        a.slug as slug,
-        a.title as title,
-        a.body as body,
-        a.description as description,
-        a.created_at as created_at,
-        (SELECT string_agg(tag, ' ') FROM ArticleTags WHERE article = a.slug) as "tag_list: Option<String>",
-        (SELECT COUNT(*) FROM FavArticles WHERE article = a.slug) as "fav_count: Option<i64>",
-        (SELECT COUNT(*) FROM comments WHERE article = a.slug) as "comments_count: Option<i64>",
-        u.username as username,
-        u.image as image,
-        EXISTS(SELECT 1 FROM FavArticles WHERE article=a.slug and user_id=$2) as "fav: Option<i64>",
-        EXISTS(SELECT 1 FROM Follows WHERE follower_id=$2 and influencer_id=u.id) as "following: Option<i64>"
-    FROM Articles a
-        JOIN Users u ON a.author_id = u.id
-    WHERE slug = $1
-    "#,
-            slug,
-            user_id,
-        )
-        .map(|x| Article
-            {
-            slug: x.slug,
-            title: x.title,
-            description: x.description,
-            body: Some(x.body),
-            tag_list: x
-                .tag_list
-                .flatten()
-                .as_deref()
-                .unwrap_or_default()
-                .split_ascii_whitespace()
-                .map(str::to_string)
-                .collect::<Vec<_>>(),
-            favorites_count: x.fav_count.flatten().unwrap_or_default(),
-            created_at: x.created_at.format(super::DATE_FORMAT).to_string(),
-            fav: x.fav.flatten().unwrap_or_default() != 0,
-            author: UserPreview {
-                username: x.username,
-                image: x.image,
-                following: x.following.flatten().unwrap_or_default() != 0,
-            },
-            comments_count: x.comments_count.flatten().unwrap_or_default(),
-        })
-        .fetch_one(db)
-        .await
-}
+// async fn fetch_comments(db: &SqlitePool, slug: &str) -> Result<Vec<Comment>, sqlx::Error> {
+//     sqlx::query!(
+//         "
+//     SELECT c.id, c.article, c.body, c.created_at, u.username, u.image FROM Comments as c
+//         JOIN Users as u ON u.id=c.user_id
+//     WHERE c.article=$1
+//     ORDER BY c.created_at",
+//         slug
+//     )
+//     .map(|x| Comment {
+//         id: x.id,
+//         article: x.article,
+//         username: x.username,
+//         body: x.body,
+//         created_at: x.created_at.format(crate::models::DATE_FORMAT).to_string(),
+//         user_image: x.image,
+//     })
+//     .fetch_all(db)
+//     .await
+// }
 
-async fn fetch_comments(db: &SqlitePool, slug: &str) -> Result<Vec<Comment>, sqlx::Error> {
-    sqlx::query!(
-        "
-    SELECT c.id, c.article, c.body, c.created_at, u.username, u.image FROM Comments as c
-        JOIN Users as u ON u.id=c.user_id
-    WHERE c.article=$1
-    ORDER BY c.created_at",
-        slug
-    )
-    .map(|x| Comment {
-        id: x.id,
-        article: x.article,
-        username: x.username,
-        body: x.body,
-        created_at: x.created_at.format(super::DATE_FORMAT).to_string(),
-        user_image: x.image,
-    })
-    .fetch_all(db)
-    .await
-}
+// async fn insert_comment(
+//     db: &SqlitePool,
+//     article: &str,
+//     user_id: i64,
+//     body: &str,
+// ) -> Result<(), sqlx::Error> {
+//     sqlx::query!(
+//         "INSERT INTO Comments(article, user_id, body) VALUES ($1, $2, $3)",
+//         article,
+//         user_id,
+//         body,
+//     )
+//     .execute(db)
+//     .await?;
+//     Ok(())
+// }
 
-async fn insert_comment(
-    db: &SqlitePool,
-    article: &str,
-    user_id: i64,
-    body: &str,
-) -> Result<(), sqlx::Error> {
-    sqlx::query!(
-        "INSERT INTO Comments(article, user_id, body) VALUES ($1, $2, $3)",
-        article,
-        user_id,
-        body,
-    )
-    .execute(db)
-    .await?;
-    Ok(())
-}
+// /// Deletes comment if owned by `user`. Returns article slug for redirect.
+// async fn delete_comment(
+//     db: &SqlitePool,
+//     id: i64,
+//     user_id: i64,
+// ) -> Result<Option<String>, sqlx::Error> {
+//     let row = sqlx::query!(
+//         "SELECT article FROM Comments WHERE id = $1 AND user_id = $2",
+//         id,
+//         user_id,
+//     )
+//     .fetch_optional(db)
+//     .await?;
 
-/// Deletes comment if owned by `user`. Returns article slug for redirect.
-async fn delete_comment(
-    db: &SqlitePool,
-    id: i64,
-    user_id: i64,
-) -> Result<Option<String>, sqlx::Error> {
-    let row = sqlx::query!(
-        "SELECT article FROM Comments WHERE id = $1 AND user_id = $2",
-        id,
-        user_id,
-    )
-    .fetch_optional(db)
-    .await?;
+//     let Some(r) = row else {
+//         return Ok(None);
+//     };
+//     let slug = r.article;
 
-    let Some(r) = row else {
-        return Ok(None);
-    };
-    let slug = r.article;
+//     sqlx::query!(
+//         "DELETE FROM Comments WHERE id = $1 AND user_id = $2",
+//         id,
+//         user_id,
+//     )
+//     .execute(db)
+//     .await?;
 
-    sqlx::query!(
-        "DELETE FROM Comments WHERE id = $1 AND user_id = $2",
-        id,
-        user_id,
-    )
-    .execute(db)
-    .await?;
-
-    Ok(Some(slug))
-}
+//     Ok(Some(slug))
+// }

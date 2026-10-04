@@ -14,6 +14,7 @@ mod database;
 mod models;
 use crate::{database::AppState, models::UserPreview};
 mod auth;
+mod components;
 mod views;
 
 #[tokio::main]
@@ -49,7 +50,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 #[layout("/")]
 async fn root_layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
     let current_user = crate::auth::current_user(cx).await?;
-    println!("At layout current_user is : {:#?}", current_user);
+    // println!("At layout current_user is : {:#?}", current_user);
     let user_in = signal(cx, || current_user);
     Ok(view! {
         <!DOCTYPE html>
@@ -122,7 +123,7 @@ async fn navbar(
 ) -> Result<impl View> {
     // Stub: pretend user is logged out. Change to `true` to see logged-in menu.
     let logged_in = true;
-    let username = "demo_user";
+    // let username = "demo_user";
     // let user_in = signal(cx, || None::<crate::models::UserPreview>);
 
     Ok(view! {
@@ -140,7 +141,7 @@ async fn navbar(
                     </a>
 
                     if user_in.get().is_some() {
-                    // if logged_in {
+                        // if logged_in {
                         // New Article
                         <a href="/new-article" class="navitem group">
                             <i class="fa-solid fa-square-plus navitem-icon"></i>
@@ -159,13 +160,12 @@ async fn navbar(
 
                         // Profile
                         <a
-                            href=(format!("/profile/{}", username))
+                            href=(format!("/profile/{}", user_in.get().unwrap().username))
                             class="navitem group"
                         >
                             <i class="fa-regular fa-circle-user navitem-icon"></i>
                             <span class="text-xs md:text-base mt-1 font-semibold">
-                                (user_in.get().unwrap().username)
-                                // (username)
+                                (user_in.get().unwrap().username) // (username)
                             </span>
                         </a>
 
@@ -271,15 +271,15 @@ async fn footer() -> Result<impl View> {
 //     })
 // }
 
-#[page("/new-article")]
-async fn new_article() -> Result<impl View> {
-    Ok(view! {
-        stub_page(
-            title: "New Article",
-            description: "Create a new article — placeholder editor goes here."
-        )
-    })
-}
+// #[page("/new-article")]
+// async fn new_article() -> Result<impl View> {
+//     Ok(view! {
+//         stub_page(
+//             title: "New Article",
+//             description: "Create a new article — placeholder editor goes here."
+//         )
+//     })
+// }
 
 #[page("/settings")]
 async fn settings() -> Result<impl View> {
@@ -291,15 +291,15 @@ async fn settings() -> Result<impl View> {
     })
 }
 
-#[page("/profile/{username}")]
-async fn profile() -> Result<impl View> {
-    Ok(view! {
-        stub_page(
-            title: "Profile",
-            description: "User profile page — stub. (username from URL path)"
-        )
-    })
-}
+// #[page("/profile/{username}")]
+// async fn profile() -> Result<impl View> {
+//     Ok(view! {
+//         stub_page(
+//             title: "Profile",
+//             description: "User profile page — stub. (username from URL path)"
+//         )
+//     })
+// }
 
 // #[page("/login")]
 // async fn login() -> Result<impl View> {

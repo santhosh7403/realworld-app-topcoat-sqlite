@@ -242,7 +242,7 @@ async fn article_editor(
 path_param!(slug);
 
 /// Create new article
-#[page("/editor")]
+#[page("/new-article")]
 async fn editor_new() -> Result<impl View> {
     Ok(view! {
         article_editor(
@@ -260,9 +260,8 @@ async fn editor_new() -> Result<impl View> {
 #[page("/editor/{slug}")]
 async fn editor_edit(cx: &Cx) -> Result<impl View> {
     let slug = path_param::<Slug>(cx);
-    let state = app_context::<crate::AppState>(cx);
 
-    let article = crate::views::article::fetch_article(&state.db, slug, None)
+    let article = crate::models::article::Article::fetch_article(cx, slug, None)
         .await
         .ok_or_not_found()?;
     // .ok_or_not_found();

@@ -1,3 +1,4 @@
+use crate::database::db;
 use topcoat::{
     Result,
     context::Cx,
@@ -65,17 +66,25 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
     // logged-in user: stub for now (wire to session later)
     // let logged_user: Option<String> = None;
 
-    let (articles, tags) = match try_get_db(cx) {
-        Some(db_pool) => {
-            let db = db_pool.clone();
-            let articles = fetch_home_articles(&db, page, amount, &tag, my_feed, user_id)
-                .await
-                .unwrap_or_default();
-            let tags = fetch_popular_tags(&db).await.unwrap_or_default();
-            (articles, tags)
-        }
-        None => (Vec::new(), Vec::new()),
-    };
+    // let (articles, tags) = match try_get_db(cx) {
+    //     Some(db_pool) => {
+    //         let db = db_pool.clone();
+    //         let articles = crate::models::article::Article::load_home_articles(
+    //             cx, page, amount, &tag, my_feed, user_id,
+    //         )
+    //         .await
+    //         .unwrap_or_default();
+    //         let tags = fetch_popular_tags(&db).await.unwrap_or_default();
+    //         (articles, tags)
+    //     }
+    //     None => (Vec::new(), Vec::new()),
+    // };
+
+    let articles = crate::models::article::Article::load_home_articles(
+        cx, page, amount, &tag, my_feed, user_id,
+    )
+    .await?;
+    let tags = fetch_popular_tags(cx).await.unwrap_or_default();
 
     Ok(view! {
         <div class="bg-gray-200 dark:bg-gray-900 min-h-screen">
@@ -292,7 +301,7 @@ async fn tag_link(
 // ---- Article preview list ----
 
 #[component]
-async fn article_preview_list(articles: Vec<Article>) -> Result<impl View> {
+pub async fn article_preview_list(articles: Vec<Article>) -> Result<impl View> {
     Ok(view! {
         for article in articles {
             article_preview(article: article)
@@ -388,7 +397,7 @@ async fn article_preview(article: Article) -> Result<impl View> {
 // ---- Prev / Next ----
 
 #[component]
-async fn prev_next(
+pub async fn prev_next(
     page: i64,
     amount: i64,
     tag: String,
@@ -425,82 +434,82 @@ async fn prev_next(
 // DB helpers
 // ---------------------------------------------------------------------------
 
-pub fn try_get_db(cx: &Cx) -> Option<&SqlitePool> {
-    topcoat::context::try_app_context::<AppState>(cx).map(|s| &s.db)
-}
+// pub fn try_get_db(cx: &Cx) -> Option<&SqlitePool> {
+//     topcoat::context::try_app_context::<AppState>(cx).map(|s| &s.db)
+// }
 
-async fn fetch_home_articles(
-    db: &SqlitePool,
-    page: i64,
-    amount: i64,
-    tag: &str,
-    my_feed: bool,
-    user_id: Option<i64>,
-) -> Result<Vec<Article>, sqlx::Error> {
-    let offset = page * amount;
-    // let username = username.unwrap_or("");
+// async fn fetch_home_articles(
+//     db: &SqlitePool,
+//     page: i64,
+//     amount: i64,
+//     tag: &str,
+//     my_feed: bool,
+//     user_id: Option<i64>,
+// ) -> Result<Vec<Article>, sqlx::Error> {
+//     let offset = page * amount;
+//     // let username = username.unwrap_or("");
 
-    sqlx::query!(
-        "
-SELECT
-a.slug,
-a.title,
-a.description,
-a.created_at,
-(SELECT COUNT(*) FROM FavArticles WHERE article=a.slug) as favorites_count,
-(SELECT COUNT(*) FROM comments WHERE article=a.slug) as comments_count,
-u.username, u.image,
-EXISTS(SELECT 1 FROM FavArticles WHERE article=a.slug and user_id=$5) as fav,
-EXISTS(SELECT 1 FROM Follows WHERE follower_id=$5 and influencer_id=u.id) as following,
-(SELECT string_agg(tag, ' ') FROM ArticleTags WHERE article = a.slug) as tag_list
-FROM Articles as a
-JOIN Users as u ON a.author_id = u.id
-WHERE
-CASE WHEN $3!='' THEN a.slug in (SELECT distinct article FROM ArticleTags WHERE tag=$3)
-ELSE 1=1
-END
-AND
-CASE WHEN $4 THEN u.id in (SELECT influencer_id FROM Follows WHERE follower_id=$5)
-ELSE 1=1
-END
-ORDER BY a.created_at desc
-LIMIT $1 OFFSET $2",
-        amount,
-        offset,
-        tag,
-        my_feed,
-        user_id,
-    )
-    .map(|x| Article {
-        slug: x.slug,
-        title: x.title,
-        body: None, // no need
-        fav: x.fav != 0,
-        // fav: x.fav.unwrap_or_default(),
-        description: x.description,
-        created_at: x.created_at.format(super::DATE_FORMAT).to_string(),
-        favorites_count: x.favorites_count,
-        // favorites_count: x.favorites_count.unwrap_or_default(),
-        author: UserPreview {
-            username: x.username,
-            image: x.image,
-            following: x.following != 0,
-            // following: x.following.unwrap_or_default(),
-        },
-        tag_list: x
-            .tag_list
-            .unwrap_or_default()
-            .split(' ')
-            .map(ToString::to_string)
-            .collect::<Vec<String>>(),
-        comments_count: x.comments_count,
-        // comments_count: x.comments_count.unwrap_or_default(),
-    })
-    .fetch_all(db)
-    .await
-}
+//     sqlx::query!(
+//         "
+// SELECT
+// a.slug,
+// a.title,
+// a.description,
+// a.created_at,
+// (SELECT COUNT(*) FROM FavArticles WHERE article=a.slug) as favorites_count,
+// (SELECT COUNT(*) FROM comments WHERE article=a.slug) as comments_count,
+// u.username, u.image,
+// EXISTS(SELECT 1 FROM FavArticles WHERE article=a.slug and user_id=$5) as fav,
+// EXISTS(SELECT 1 FROM Follows WHERE follower_id=$5 and influencer_id=u.id) as following,
+// (SELECT string_agg(tag, ' ') FROM ArticleTags WHERE article = a.slug) as tag_list
+// FROM Articles as a
+// JOIN Users as u ON a.author_id = u.id
+// WHERE
+// CASE WHEN $3!='' THEN a.slug in (SELECT distinct article FROM ArticleTags WHERE tag=$3)
+// ELSE 1=1
+// END
+// AND
+// CASE WHEN $4 THEN u.id in (SELECT influencer_id FROM Follows WHERE follower_id=$5)
+// ELSE 1=1
+// END
+// ORDER BY a.created_at desc
+// LIMIT $1 OFFSET $2",
+//         amount,
+//         offset,
+//         tag,
+//         my_feed,
+//         user_id,
+//     )
+//     .map(|x| Article {
+//         slug: x.slug,
+//         title: x.title,
+//         body: None, // no need
+//         fav: x.fav != 0,
+//         // fav: x.fav.unwrap_or_default(),
+//         description: x.description,
+//         created_at: x.created_at.format(crate::models::DATE_FORMAT).to_string(),
+//         favorites_count: x.favorites_count,
+//         // favorites_count: x.favorites_count.unwrap_or_default(),
+//         author: UserPreview {
+//             username: x.username,
+//             image: x.image,
+//             following: x.following != 0,
+//             // following: x.following.unwrap_or_default(),
+//         },
+//         tag_list: x
+//             .tag_list
+//             .unwrap_or_default()
+//             .split(' ')
+//             .map(ToString::to_string)
+//             .collect::<Vec<String>>(),
+//         comments_count: x.comments_count,
+//         // comments_count: x.comments_count.unwrap_or_default(),
+//     })
+//     .fetch_all(db)
+//     .await
+// }
 
-async fn fetch_popular_tags(db: &SqlitePool) -> Result<Vec<String>, sqlx::Error> {
+async fn fetch_popular_tags(cx: &Cx) -> Result<Vec<String>, sqlx::Error> {
     let rows = sqlx::query!(
         r#"
 SELECT tag
@@ -510,7 +519,7 @@ ORDER BY COUNT(*) DESC
 LIMIT 20
         "#
     )
-    .fetch_all(db)
+    .fetch_all(db(cx))
     .await?;
 
     Ok(rows.into_iter().map(|r| r.tag).collect())
