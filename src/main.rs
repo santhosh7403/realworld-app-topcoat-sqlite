@@ -311,12 +311,7 @@ async fn settings() -> Result<impl View> {
 //     })
 // }
 
-#[page("/signup")]
-async fn signup() -> Result<impl View> {
-    Ok(view! {
-        stub_page(title: "Sign up", description: "Registration form placeholder.")
-    })
-}
+// Signup page is in views/signup.rs
 
 // #[page("/logout")]
 // async fn logout() -> Result<impl View> {

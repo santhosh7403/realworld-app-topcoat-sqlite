@@ -1,5 +1,3 @@
-use std::path;
-
 use sqlx::SqlitePool;
 use topcoat::{
     Result,
@@ -8,6 +6,9 @@ use topcoat::{
     view::{View, component, view},
 };
 
+use crate::components::{
+    article_preview::article_preview_list, prev_next_button::prev_next_profile,
+};
 use crate::models::User;
 
 #[query_params]
@@ -108,7 +109,7 @@ path_param!(username);
 async fn profile(cx: &Cx) -> Result<impl View> {
     // You can also read query params for pagination here if you want
     let username = path_param::<Username>(cx);
-    println!("At page profile : {}", username.clone());
+    println!("At page profile : {}", username);
     Ok(view! {
         <div class="bg-gray-200 dark:bg-gray-900">
             <div
@@ -151,6 +152,8 @@ async fn profile_page(cx: &Cx, username: &str) -> Result<impl View> {
     )
     .await?;
 
+    let articles_count = articles.len();
+
     Ok(view! {
         <div class="mb-5">
             <div class="flex justify-between px-2 bg-gray-200 dark:bg-gray-900 py-2">
@@ -162,11 +165,18 @@ async fn profile_page(cx: &Cx, username: &str) -> Result<impl View> {
 
             user_info(username: username)
 
-            // article_preview_list(articles: articles, logged_user: ...)
+            article_preview_list(articles: articles)
 
             <div class="flex justify-between">
                 <div class="flex gap-4 mb-4">
                     // prev_next_button(...)
+                    prev_next_profile(
+                        page: page,
+                        amount: amount,
+                        favourites: favourites,
+                        article_count: articles_count as i64,
+                        username: username
+                    )
                     <div class="flex gap-4 mt-4 px-2"></div>
                 </div>
                 <div class="flex justify-end px-7">back_to_home()</div>

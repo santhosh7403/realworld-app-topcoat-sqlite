@@ -35,7 +35,7 @@ pub struct LoginForm {
 
 /// GET /login — render the form.
 #[page("/login")]
-async fn login_page(cx: &Cx) -> Result<impl View> {
+pub async fn login_page(cx: &Cx) -> Result<impl View> {
     Ok(login_view(cx, None))
 }
 
