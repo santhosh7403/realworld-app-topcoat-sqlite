@@ -71,3 +71,48 @@ pub async fn current_user(cx: &Cx) -> Result<Option<crate::models::UserPreview>>
 // pub fn unix_to_system_time(secs: i64) -> SystemTime {
 //     UNIX_EPOCH + Duration::from_secs(secs as u64)
 // }
+
+#[derive(serde::Deserialize, Clone, serde::Serialize)]
+pub enum SignupResponse {
+    ValidationError(String),
+    CreateUserError(String),
+    Success,
+}
+
+pub fn validate_signup(
+    username: String,
+    email: String,
+    password: String,
+) -> Result<crate::models::User, String> {
+    crate::models::User::default()
+        .set_username(username)?
+        .set_password(password)?
+        .set_email(email)
+}
+
+pub async fn signup_action(
+    cx: &Cx,
+    username: String,
+    email: String,
+    password: String,
+) -> Result<SignupResponse, String> {
+    match validate_signup(username.clone(), email, password.clone()) {
+        Ok(user) => match user.insert(cx).await {
+            Ok(_) => Ok(SignupResponse::Success),
+            Err(x) => {
+                let x = x.to_string();
+                Ok(if x.contains("UNIQUE constraint failed: Users.email") {
+                    SignupResponse::CreateUserError("Duplicated email".to_string())
+                } else if x.contains("UNIQUE constraint failed: Users.username") {
+                    SignupResponse::CreateUserError("Duplicated user".to_string())
+                } else {
+                    tracing::error!("error from DB: {}", x);
+                    SignupResponse::CreateUserError(
+                        "There is some problem in user creation, check log".to_string(),
+                    )
+                })
+            }
+        },
+        Err(x) => Ok(SignupResponse::ValidationError(x)),
+    }
+}

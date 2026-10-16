@@ -8,6 +8,7 @@ use topcoat::{
 };
 
 use crate::database::db;
+use crate::models::user::User;
 
 #[derive(Debug, Deserialize)]
 struct SignupForm {
@@ -39,13 +40,27 @@ async fn signup_submit(cx: &Cx, Form(form): Form<SignupForm>) -> Result<impl Vie
         ));
     }
 
+    // let user = User::default();
+
+    // user.clone()
+    //     .set_username(form.username)
+    //     .unwrap()
+    //     .set_password(form.password)
+    //     .unwrap()
+    //     .set_email(form.email)
+    //     .unwrap();
+
+    // let result = user.insert(cx).await;
+
+    let result = crate::auth::signup_action(cx, form.username, form.email, form.password).await;
+
     // Insert user
-    let result = sqlx::query("INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)")
-        .bind(&form.username)
-        .bind(&form.email)
-        .bind(&form.password) // hash this in real code
-        .execute(db(cx))
-        .await;
+    // let result = sqlx::query("INSERT INTO users (username, email, password) VALUES (?, ?, ?)")
+    //     .bind(&form.username)
+    //     .bind(&form.email)
+    //     .bind(&form.password) // hash this in real code
+    //     .execute(db(cx))
+    //     .await;
 
     match result {
         Ok(_) => {
