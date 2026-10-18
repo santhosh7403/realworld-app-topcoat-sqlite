@@ -24,7 +24,7 @@ pub async fn signup(cx: &Cx) -> Result<impl View> {
 }
 
 /// POST /signup — validate credentials, create user, redirect or re-show errors.
-#[page(POST "/signup")]
+#[page(POST "/signup2")]
 async fn signup_submit(cx: &Cx, Form(form): Form<SignupForm>) -> Result<impl View> {
     // Validate
     if form.username.trim().is_empty() {
@@ -80,10 +80,15 @@ fn signup_view(cx: &Cx, error: Option<String>) -> impl View {
     let passwd_visible = signal(cx, || false);
 
     view! {
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-60">
-            <div class="block rounded-lg bg-white dark:bg-gray-800 w-2/5 p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] z-70">
-
-                <h5 class="mb-5 text-xl font-medium leading-tight text-neutral-800 dark:text-gray-200">
+        <div
+            class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-60"
+        >
+            <div
+                class="block rounded-lg bg-white dark:bg-gray-800 w-2/5 p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] z-70"
+            >
+                <h5
+                    class="mb-5 text-xl font-medium leading-tight text-neutral-800 dark:text-gray-200"
+                >
                     "Create an account."
                 </h5>
 
@@ -92,7 +97,10 @@ fn signup_view(cx: &Cx, error: Option<String>) -> impl View {
                 <p class="text-xs-center py-6">
                     <span class="text-blue-500 font-medium">
                         // 0.10 client-side navigation (no full reload)
-                        link(href: href!(crate::views::login::login_page), "Have an account already? Click here to login ")
+                        link(
+                            href: href!(crate::views::login::login_page),
+                            "Have an account already? Click here to login "
+                        )
                     </span>
                 </p>
 
@@ -142,7 +150,11 @@ fn signup_view(cx: &Cx, error: Option<String>) -> impl View {
                             class="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 dark:bg-gray-700 leading-tight focus:ring"
                             id="password"
                             name="password"
-                            :type=$(if passwd_visible.get() { "text" } else { "password" })
+                            :type=$(if passwd_visible.get() {
+                                "text"
+                            } else {
+                                "password"
+                            })
                             placeholder="Password"
                             required=""
                         >
@@ -171,11 +183,7 @@ fn signup_view(cx: &Cx, error: Option<String>) -> impl View {
                     </div>
 
                     if let Some(msg) = error {
-                        <div>
-                            <span class="font-medium text-red-500">
-                                (msg)
-                            </span>
-                        </div>
+                        <div><span class="font-medium text-red-500">(msg)</span></div>
                     }
                 </form>
             </div>

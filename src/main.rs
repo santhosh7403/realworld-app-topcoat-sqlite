@@ -99,6 +99,7 @@ async fn root_layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                     }"#
                 </style>
 
+                topcoat::runtime::script()
                 topcoat::dev::script()
             </head>
             <body
@@ -281,15 +282,7 @@ async fn footer() -> Result<impl View> {
 //     })
 // }
 
-#[page("/settings")]
-async fn settings() -> Result<impl View> {
-    Ok(view! {
-        stub_page(
-            title: "Settings",
-            description: "User preferences, theme, pagination, etc. — stub."
-        )
-    })
-}
+// Settings page is in views/settings.rs
 
 // #[page("/profile/{username}")]
 // async fn profile() -> Result<impl View> {
