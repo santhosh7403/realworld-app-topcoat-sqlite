@@ -6,37 +6,11 @@ use topcoat::{
     view::{View, view},
 };
 
-// Procedure result (also a record — enums still not runtime-safe)
 #[record]
 #[derive(Clone)]
 pub struct SignupResponse {
     pub kind: String, // "success" | "validation_error" | "create_error"
     pub message: String,
-}
-
-// All client form UI state in ONE signal
-#[record]
-#[derive(Clone)]
-pub struct SignupForm {
-    pub username: String,
-    pub email: String,
-    pub password: String,
-    pub passwd_visible: bool,
-    pub status: String,
-    pub button_label: String,
-}
-
-impl SignupForm {
-    fn new() -> Self {
-        Self {
-            username: String::new(),
-            email: String::new(),
-            password: String::new(),
-            passwd_visible: false,
-            status: String::new(),
-            button_label: "Create Account".to_owned(),
-        }
-    }
 }
 
 #[procedure]
@@ -80,8 +54,12 @@ async fn signup_action(
 
 #[page("/signup")]
 async fn signup(cx: &Cx) -> Result<impl View> {
-    // Single signal — this is the 0.10-friendly shape
-    let form = signal(cx, SignupForm::new);
+    let username = signal(cx, || String::new());
+    let email = signal(cx, || String::new());
+    let password = signal(cx, || String::new());
+    let passwd_visible = signal(cx, || false);
+    let status = signal(cx, || String::new());
+    let button_label = signal(cx, || "Create Account".to_owned());
 
     Ok(view! {
         <div
@@ -122,20 +100,8 @@ async fn signup(cx: &Cx) -> Result<impl View> {
                             type="text"
                             placeholder="username"
                             required=""
-                            :value=$(form.get().username)
-                            @input=$(|e: Event| {
-                                let f = form.get();
-                                form.set(
-                                    SignupForm {
-                                        username: e.target.value,
-                                        email: f.email,
-                                        password: f.password,
-                                        passwd_visible: f.passwd_visible,
-                                        status: f.status,
-                                        button_label: f.button_label,
-                                    },
-                                );
-                            })
+                            :value=$(username.get())
+                            @input=$(|e: Event| username.set(e.target.value))
                         >
                     </div>
 
@@ -153,20 +119,8 @@ async fn signup(cx: &Cx) -> Result<impl View> {
                             type="email"
                             placeholder="Email"
                             required=""
-                            :value=$(form.get().email)
-                            @input=$(|e: Event| {
-                                let f = form.get();
-                                form.set(
-                                    SignupForm {
-                                        username: f.username,
-                                        email: e.target.value,
-                                        password: f.password,
-                                        passwd_visible: f.passwd_visible,
-                                        status: f.status,
-                                        button_label: f.button_label,
-                                    },
-                                );
-                            })
+                            :value=$(email.get())
+                            @input=$(|e: Event| email.set(e.target.value))
                         >
                     </div>
 
@@ -181,45 +135,21 @@ async fn signup(cx: &Cx) -> Result<impl View> {
                             class="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 dark:bg-gray-700 leading-tight focus:ring"
                             id="password"
                             name="password"
-                            :type=$(if form.get().passwd_visible {
+                            :type=$(if passwd_visible.get() {
                                 "text"
                             } else {
                                 "password"
                             })
                             placeholder="Password"
                             required=""
-                            :value=$(form.get().password)
-                            @input=$(|e: Event| {
-                                let f = form.get();
-                                form.set(
-                                    SignupForm {
-                                        username: f.username,
-                                        email: f.email,
-                                        password: e.target.value,
-                                        passwd_visible: f.passwd_visible,
-                                        status: f.status,
-                                        button_label: f.button_label,
-                                    },
-                                );
-                            })
+                            :value=$(password.get())
+                            @input=$(|e: Event| password.set(e.target.value))
                         >
                         <span
                             class="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer text-gray-500 dark:text-gray-400"
-                            @click=$(|_e: Event| {
-                                let f = form.get();
-                                form.set(
-                                    SignupForm {
-                                        username: f.username,
-                                        email: f.email,
-                                        password: f.password,
-                                        passwd_visible: !f.passwd_visible,
-                                        status: f.status,
-                                        button_label: f.button_label,
-                                    },
-                                );
-                            })
+                            @click=$(|_e: Event| passwd_visible.set(!passwd_visible.get()))
                         >
-                            $(if form.get().passwd_visible {
+                            $(if passwd_visible.get() {
                                 "👁"
                             } else {
                                 "👁‍🗨"
@@ -232,69 +162,29 @@ async fn signup(cx: &Cx) -> Result<impl View> {
                             type="button"
                             class="bg-blue-700 hover:bg-blue-800 px-5 py-3 text-white rounded-lg"
                             @click=$(async |_e: Event| {
-                                let f = form.get();
-
-                                if f.status.starts_with("Signup Successful") {
+                                if status.get().starts_with("Signup Successful") {
                                     raw!("window.location.href = '/login'")
                                 } else {
-                                    // Await yields the Ok value; Err fails the browser expression.
                                     let resp = signup_action(
-                                        f.username.to_owned(),
-                                        f.email.to_owned(),
-                                        f.password.to_owned(),
+                                        username.get().to_owned(),
+                                        email.get().to_owned(),
+                                        password.get().to_owned(),
                                     ).await;
 
                                     if resp.kind == "success" {
-                                        form.set(
-                                            SignupForm {
-                                                username: f.username,
-                                                email: f.email,
-                                                password: f.password,
-                                                passwd_visible: f.passwd_visible,
-                                                status: resp.message,
-                                                button_label: "Login to Account Created?".to_owned(),
-                                            },
-                                        );
+                                        status.set(resp.message);
+                                        button_label.set("Login to Account Created?".to_owned());
                                     } else if resp.kind == "validation_error" {
-                                        form.set(
-                                            SignupForm {
-                                                username: f.username,
-                                                email: f.email,
-                                                password: f.password,
-                                                passwd_visible: f.passwd_visible,
-                                                status: resp.message,
-                                                button_label: f.button_label,
-                                            },
-                                        );
+                                        status.set(resp.message);
                                     } else if resp.kind == "create_error" {
-                                        form.set(
-                                            SignupForm {
-                                                username: f.username,
-                                                email: f.email,
-                                                password: f.password,
-                                                passwd_visible: f.passwd_visible,
-                                                status: resp.message,
-                                                button_label: f.button_label,
-                                            },
-                                        );
+                                        status.set(resp.message);
                                     } else {
-                                        form.set(
-                                            SignupForm {
-                                                username: f.username,
-                                                email: f.email,
-                                                password: f.password,
-                                                passwd_visible: f.passwd_visible,
-                                                status: "There was some problem with signup, try again later".to_owned(
-
-                                                ),
-                                                button_label: f.button_label,
-                                            },
-                                        );
+                                        status.set("There was some problem with signup, try again later".to_owned());
                                     }
                                 }
                             })
                         >
-                            $(form.get().button_label)
+                            $(button_label.get())
                         </button>
 
                         <a
@@ -307,16 +197,15 @@ async fn signup(cx: &Cx) -> Result<impl View> {
 
                     <div>
                         <span
-                            :class=$(if form
+                            :class=$(if status
                                 .get()
-                                .status
                                 .starts_with("Signup Successful") {
                                 "font-medium text-green-500"
                             } else {
                                 "font-medium text-red-500"
                             })
                         >
-                            $(form.get().status)
+                            $(status.get())
                         </span>
                     </div>
                 </form>

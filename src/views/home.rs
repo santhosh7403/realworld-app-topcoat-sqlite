@@ -1,9 +1,10 @@
 use crate::database::db;
+use crate::models::MatchedArticles;
 use topcoat::{
     Result,
     context::Cx,
     router::{page, parse_query_params, query_params},
-    view::{View, component, view},
+    view::{View, component, view, Unescaped},
 };
 
 use crate::components::{article_preview::article_preview_list, prev_next_button::prev_next};
@@ -14,6 +15,7 @@ struct HomeQuery {
     amount: Option<i64>,
     tag: Option<String>,
     my_feed: Option<bool>,
+    search: Option<String>,
 }
 
 impl HomeQuery {
@@ -29,6 +31,9 @@ impl HomeQuery {
     fn my_feed(&self) -> bool {
         self.my_feed.unwrap_or(false)
     }
+    fn search(&self) -> String {
+        self.search.as_deref().unwrap_or("").trim().to_string()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -37,22 +42,23 @@ impl HomeQuery {
 
 #[page("/")]
 pub async fn home(cx: &Cx) -> Result<impl View> {
-    // let q = query_params::<HomeQuery>(cx)?;
     let q: HomeQuery = parse_query_params(cx).map_err(|e| {
-        // turn parse failure into a 400 (adjust to your preferred error helper)
         topcoat::router::error::bad_request(format!("invalid query: {e}"))
     })?;
     let page = q.page();
     let amount = q.amount();
     let tag = q.tag();
     let my_feed = q.my_feed();
+    let search_query = q.search();
+    let search_mode = !search_query.is_empty();
+
     let current_user = crate::auth::current_user(cx).await?;
 
     let logged_user = if let Some(u) = current_user.clone() {
         Some(u.username)
     } else {
         None
-    }; // wire to session later
+    };
 
     let user_id = if let Some(u) = current_user {
         Some(u.id)
@@ -60,28 +66,32 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
         None
     };
 
-    // logged-in user: stub for now (wire to session later)
-    // let logged_user: Option<String> = None;
+    let tags = if search_mode {
+        Vec::new()
+    } else {
+        fetch_popular_tags(cx).await.unwrap_or_default()
+    };
 
-    // let (articles, tags) = match try_get_db(cx) {
-    //     Some(db_pool) => {
-    //         let db = db_pool.clone();
-    //         let articles = crate::models::article::Article::load_home_articles(
-    //             cx, page, amount, &tag, my_feed, user_id,
-    //         )
-    //         .await
-    //         .unwrap_or_default();
-    //         let tags = fetch_popular_tags(&db).await.unwrap_or_default();
-    //         (articles, tags)
-    //     }
-    //     None => (Vec::new(), Vec::new()),
-    // };
+    let articles = if search_mode {
+        Vec::new()
+    } else {
+        crate::models::article::Article::load_home_articles(
+            cx, page, amount, &tag, my_feed, user_id,
+        )
+        .await?
+    };
 
-    let articles = crate::models::article::Article::load_home_articles(
-        cx, page, amount, &tag, my_feed, user_id,
-    )
-    .await?;
-    let tags = fetch_popular_tags(cx).await.unwrap_or_default();
+    let (search_total, search_results) = if search_mode {
+        let total = MatchedArticles::search_count(cx, &search_query)
+            .await
+            .unwrap_or(0);
+        let results = MatchedArticles::search_articles(cx, &search_query, page, amount)
+            .await
+            .unwrap_or_default();
+        (total, results)
+    } else {
+        (0, Vec::new())
+    };
 
     Ok(view! {
         <div class="bg-gray-200 dark:bg-gray-900 min-h-screen">
@@ -97,7 +107,33 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
                             amount: amount
                         )
                     </div>
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        // Search box
+                        <form method="get" action="/" class="flex items-center gap-1">
+                            <input type="hidden" name="page" value="0" />
+                            <input type="hidden" name="amount" value=(amount.to_string()) />
+                            <input
+                                class="shadow appearance-none bg-white dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded py-1 px-3 text-gray-700 leading-tight focus:outline-none"
+                                type="text"
+                                name="search"
+                                minlength="2"
+                                placeholder="Search string"
+                                value=(search_query.clone())
+                            />
+                            <button type="submit" class="px-2 hover:text-blue-500">
+                                <i class="fas fa-magnifying-glass"></i>
+                            </button>
+                            if search_mode {
+                                <a
+                                    href="/"
+                                    class="text-blue-400 hover:underline hover:text-blue-500 transition duration-200 cursor-pointer px-2"
+                                >
+                                    "Clear Search"
+                                </a>
+                            }
+                        </form>
+
+                        // Tag filter
                         <form method="get" action="/" class="flex">
                             <input type="hidden" name="page" value="0" />
                             <input
@@ -125,51 +161,107 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
                         items_per_page(
                             amount: amount,
                             tag: tag.clone(),
-                            my_feed: my_feed
+                            my_feed: my_feed,
+                            search: search_query.clone()
                         )
                     </div>
                 </div>
 
-                // Popular tags (only on Global Feed)
-                if !my_feed {
-                    <div
-                        class="flex gap-1 rounded bg-white dark:bg-gray-800 mb-2 p-1 flex-wrap items-center"
-                    >
-                        <span class="font-bold m-1">"Popular Tags:"</span>
-                        tag_list(
-                            tags: tags,
-                            current_tag: tag.clone(),
-                            amount: amount,
-                            my_feed: my_feed
-                        )
+                if search_mode {
+                    // Search results header
+                    <div class="flex justify-between mb-1 flex-wrap gap-2">
+                        <div class="font-bold">
+                            "Search results = "
+                            (search_total.to_string())
+                        </div>
+                        if search_total > 0 {
+                            <div>
+                                "  Showing results "
+                                ({
+                                    match page {
+                                        0 => "1".to_string(),
+                                        _ => (page * amount + 1).to_string(),
+                                    }
+                                })
+                                " to "
+                                ({
+                                    match (page, search_total < amount) {
+                                        (0, true) => search_total.to_string(),
+                                        (0, false) => amount.to_string(),
+                                        (_, _) => (std::cmp::min((page + 1) * amount, search_total)).to_string(),
+                                    }
+                                })
+                                " of "
+                                (search_total.to_string())
+                            </div>
+                        }
                     </div>
-                }
 
-                // Article list
-                if articles.is_empty() {
-                    if my_feed {
-                        <p class="text-gray-700 dark:text-gray-300 p-4">
-                            "You are not following any other user!"
-                        </p>
-                    } else {
-                        <p class="text-gray-700 dark:text-gray-300 p-4">
-                            "No articles to list"
-                        </p>
+                    for article in search_results.iter() {
+                        search_result_item(article: article.clone())
                     }
-                } else {
-                    article_preview_list(articles: articles.clone())
-                }
 
-                // Prev / Next
-                <div class="flex gap-4 mt-4 px-2">
-                    prev_next(
-                        page: page,
-                        amount: amount,
-                        tag: tag.clone(),
-                        my_feed: my_feed,
-                        article_count: articles.len() as i64
-                    )
-                </div>
+                    // Prev / Next for search
+                    <div class="flex gap-4 mt-4 px-2 justify-end">
+                        if page > 0 {
+                            <a
+                                href=(format!("/?search={}&page={}&amount={}", urlencoding(search_query.clone()), (page - 1).max(0), amount))
+                                class="px-4 cursor-pointer hover:text-blue-500 border dark:border-gray-600 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                            >
+                                "<< Previous page"
+                            </a>
+                        }
+                        if search_results.len() as i64 >= amount && search_total > (page + 1) * amount {
+                            <a
+                                href=(format!("/?search={}&page={}&amount={}", urlencoding(search_query.clone()), page + 1, amount))
+                                class="px-4 cursor-pointer hover:text-blue-500 border dark:border-gray-600 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                            >
+                                "Next page >>"
+                            </a>
+                        }
+                    </div>
+                } else {
+                    // Popular tags (only on Global Feed)
+                    if !my_feed {
+                        <div
+                            class="flex gap-1 rounded bg-white dark:bg-gray-800 mb-2 p-1 flex-wrap items-center"
+                        >
+                            <span class="font-bold m-1">"Popular Tags:"</span>
+                            tag_list(
+                                tags: tags,
+                                current_tag: tag.clone(),
+                                amount: amount,
+                                my_feed: my_feed
+                            )
+                        </div>
+                    }
+
+                    // Article list
+                    if articles.is_empty() {
+                        if my_feed {
+                            <p class="text-gray-700 dark:text-gray-300 p-4">
+                                "You are not following any other user!"
+                            </p>
+                        } else {
+                            <p class="text-gray-700 dark:text-gray-300 p-4">
+                                "No articles to list"
+                            </p>
+                        }
+                    } else {
+                        article_preview_list(articles: articles.clone())
+                    }
+
+                    // Prev / Next
+                    <div class="flex gap-4 mt-4 px-2">
+                        prev_next(
+                            page: page,
+                            amount: amount,
+                            tag: tag.clone(),
+                            my_feed: my_feed,
+                            article_count: articles.len() as i64
+                        )
+                    </div>
+                }
             </div>
         </div>
     })
@@ -209,12 +301,13 @@ async fn feed_tabs(my_feed: bool, logged_in: bool, amount: i64) -> Result<impl V
 // ---- Items per page ----
 
 #[component]
-async fn items_per_page(amount: i64, tag: String, my_feed: bool) -> Result<impl View> {
+async fn items_per_page(amount: i64, tag: String, my_feed: bool, search: String) -> Result<impl View> {
     Ok(view! {
         <form method="get" action="/" class="flex items-center gap-1">
             <input type="hidden" name="page" value="0" />
             <input type="hidden" name="tag" value=(tag) />
             <input type="hidden" name="my_feed" value=(my_feed.to_string()) />
+            <input type="hidden" name="search" value=(search) />
             <label class="text-gray-700 dark:text-gray-300 px-1" for="articlesPerPage">
                 "Items Per Page"
             </label>
@@ -247,20 +340,6 @@ async fn tag_list(
         <div class="flex gap-1 py-1 flex-wrap">
             for tag in tags {
                 {
-                    // let is_selected = tag == current_tag;
-                    // let href = if is_selected {
-                    //     format!("/?page=0&amount={amount}&tag=&my_feed={my_feed}")
-                    // } else {
-                    //     format!("/?page=0&amount={amount}&tag={tag}&my_feed={my_feed}")
-                    // };
-                    // let cls = if is_selected {
-                    //     "rounded px-1 py-0.5 bg-green-200 dark:bg-green-800 text-gray-800 dark:text-gray-200"
-                    // } else {
-                    //     "rounded px-1 py-0.5 bg-gray-200 dark:bg-gray-700 hover:bg-green-300 dark:hover:bg-green-700 text-gray-800 dark:text-gray-200"
-                    // };
-                    // view! {
-                    //     <a href=(href) class=(cls)>(tag)</a>
-                    // }
                     tag_link(
                         tag: tag,
                         current_tag: current_tag.clone(),
@@ -295,216 +374,47 @@ async fn tag_link(
     Ok(view! { <a href=(href) class=(cls)>(tag)</a> })
 }
 
-// ---- Article preview list ----
+// ---- Search result item ----
 
-// #[component]
-// pub async fn article_preview_list(articles: Vec<Article>) -> Result<impl View> {
-//     Ok(view! {
-//         for article in articles {
-//             article_preview(article: article)
-//         }
-//     })
-// }
+#[component]
+async fn search_result_item(article: MatchedArticles) -> Result<impl View> {
+    let slug = article.slug.clone();
+    let title = article.title.clone().unwrap_or_default();
+    let description = article.description.clone().unwrap_or_default();
+    let body = article.body.clone().unwrap_or_default();
 
-// #[component]
-// async fn article_preview(article: Article) -> Result<impl View> {
-//     let href = format!("/article/{}", article.slug);
-//     Ok(view! {
-//         <div class="mb-2 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-//             <div class="flex items-center gap-4 mb-4 text-gray-700 dark:text-gray-300">
-//                 <a
-//                     href=(format!("/profile/{}", article.author.username))
-//                     class="flex items-center gap-2 hover:underline"
-//                 >
-//                     if let Some(ref img) = article.author.image {
-//                         <img
-//                             src=(img.clone())
-//                             alt=""
-//                             class="w-8 h-8 rounded-full object-cover"
-//                         />
-//                     } else {
-//                         <i class="fa-regular fa-circle-user text-2xl"></i>
-//                     }
-//                     <span class="font-semibold">(article.author.username.clone())</span>
-//                 </a>
-//                 <div class="flex items-center gap-1">
-//                     <i class="fa-solid fa-calendar w-4 h-4"></i>
-//                     <span>(article.created_at.clone())</span>
-//                 </div>
-//                 <div class="flex items-center gap-1">
-//                     <i
-//                         class=(if article.comments_count > 0 {
-//                             "fas fa-comments w-4 h-4 text-yellow-500"
-//                         } else {
-//                             "far fa-comments w-4 h-4 text-gray-500"
-//                         })
-//                     ></i>
-//                     <span class="px-1">
-//                         "Comments: "
-//                         (article.comments_count.to_string())
-//                     </span>
-//                 </div>
-//                 <div class="flex items-center gap-1">
-//                     <i
-//                         class=(if article.fav {
-//                             "fas fa-heart text-red-500"
-//                         } else {
-//                             "far fa-heart"
-//                         })
-//                     ></i>
-//                     <span>(article.favorites_count.to_string())</span>
-//                 </div>
-//             </div>
-
-//             <a href=(href.clone())>
-//                 <h2 class="text-2xl font-bold mb-2 text-gray-800 dark:text-gray-200">
-//                     (article.title.clone())
-//                 </h2>
-//             </a>
-//             <a href=(href.clone())>
-//                 <p class="text-gray-700 dark:text-gray-300 mb-4">
-//                     (article.description.clone())
-//                 </p>
-//             </a>
-
-//             <div
-//                 class="flex justify-between items-end text-gray-600 dark:text-gray-400"
-//             >
-//                 <a href=(href) class="hover:text-blue-600 hover:underline">
-//                     "Read more..."
-//                 </a>
-//                 <div class="flex flex-wrap gap-1 items-center">
-//                     <i class="fa-solid fa-hashtag py-1"></i>
-//                     for t in article.tag_list {
-//                         if !t.is_empty() {
-//                             <a
-//                                 href=(format!("/?page=0&amount=10&tag={t}&my_feed=false"))
-//                                 class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded text-xs hover:bg-green-200 dark:hover:bg-green-800"
-//                             >
-//                                 (t)
-//                             </a>
-//                         }
-//                     }
-//                 </div>
-//             </div>
-//         </div>
-//     })
-// }
-
-// ---- Prev / Next ----
-
-// #[component]
-// pub async fn prev_next(
-//     page: i64,
-//     amount: i64,
-//     tag: String,
-//     my_feed: bool,
-//     article_count: i64,
-// ) -> Result<impl View> {
-//     let prev_href = format!(
-//         "/?page={}&amount={}&tag={}&my_feed={}",
-//         (page - 1).max(0),
-//         amount,
-//         tag,
-//         my_feed
-//     );
-//     let next_href = format!(
-//         "/?page={}&amount={}&tag={}&my_feed={}",
-//         page + 1,
-//         amount,
-//         tag,
-//         my_feed
-//     );
-//     let btn = "px-4 cursor-pointer hover:text-blue-500 border dark:border-gray-600 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200";
-
-//     Ok(view! {
-//         if page > 0 {
-//             <a href=(prev_href) class=(btn)>"<< Previous page"</a>
-//         }
-//         if article_count > 0 && article_count >= amount {
-//             <a href=(next_href) class=(btn)>"Next page >>"</a>
-//         }
-//     })
-// }
+    Ok(view! {
+        <div class="mb-2 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md text-gray-800 dark:text-gray-200">
+            <p>
+                <span class="font-bold">"Title: "</span>
+                <span>(Unescaped::new_unchecked(title))</span>
+            </p>
+            <p>
+                <span class="font-bold">"Description: "</span>
+                <span>(Unescaped::new_unchecked(description))</span>
+            </p>
+            <p>
+                <span class="font-bold">"Body: "</span>
+                <span>(Unescaped::new_unchecked(body))</span>
+            </p>
+            <div class="flex justify-between mt-2">
+                <div>
+                    <a
+                        href=(format!("/article/{}", slug))
+                        class="text-blue-600 underline cursor-pointer"
+                        target="_blank"
+                    >
+                        "Open in a new tab/window"
+                    </a>
+                </div>
+            </div>
+        </div>
+    })
+}
 
 // ---------------------------------------------------------------------------
 // DB helpers
 // ---------------------------------------------------------------------------
-
-// pub fn try_get_db(cx: &Cx) -> Option<&SqlitePool> {
-//     topcoat::context::try_app_context::<AppState>(cx).map(|s| &s.db)
-// }
-
-// async fn fetch_home_articles(
-//     db: &SqlitePool,
-//     page: i64,
-//     amount: i64,
-//     tag: &str,
-//     my_feed: bool,
-//     user_id: Option<i64>,
-// ) -> Result<Vec<Article>, sqlx::Error> {
-//     let offset = page * amount;
-//     // let username = username.unwrap_or("");
-
-//     sqlx::query!(
-//         "
-// SELECT
-// a.slug,
-// a.title,
-// a.description,
-// a.created_at,
-// (SELECT COUNT(*) FROM FavArticles WHERE article=a.slug) as favorites_count,
-// (SELECT COUNT(*) FROM comments WHERE article=a.slug) as comments_count,
-// u.username, u.image,
-// EXISTS(SELECT 1 FROM FavArticles WHERE article=a.slug and user_id=$5) as fav,
-// EXISTS(SELECT 1 FROM Follows WHERE follower_id=$5 and influencer_id=u.id) as following,
-// (SELECT string_agg(tag, ' ') FROM ArticleTags WHERE article = a.slug) as tag_list
-// FROM Articles as a
-// JOIN Users as u ON a.author_id = u.id
-// WHERE
-// CASE WHEN $3!='' THEN a.slug in (SELECT distinct article FROM ArticleTags WHERE tag=$3)
-// ELSE 1=1
-// END
-// AND
-// CASE WHEN $4 THEN u.id in (SELECT influencer_id FROM Follows WHERE follower_id=$5)
-// ELSE 1=1
-// END
-// ORDER BY a.created_at desc
-// LIMIT $1 OFFSET $2",
-//         amount,
-//         offset,
-//         tag,
-//         my_feed,
-//         user_id,
-//     )
-//     .map(|x| Article {
-//         slug: x.slug,
-//         title: x.title,
-//         body: None, // no need
-//         fav: x.fav != 0,
-//         // fav: x.fav.unwrap_or_default(),
-//         description: x.description,
-//         created_at: x.created_at.format(crate::models::DATE_FORMAT).to_string(),
-//         favorites_count: x.favorites_count,
-//         // favorites_count: x.favorites_count.unwrap_or_default(),
-//         author: UserPreview {
-//             username: x.username,
-//             image: x.image,
-//             following: x.following != 0,
-//             // following: x.following.unwrap_or_default(),
-//         },
-//         tag_list: x
-//             .tag_list
-//             .unwrap_or_default()
-//             .split(' ')
-//             .map(ToString::to_string)
-//             .collect::<Vec<String>>(),
-//         comments_count: x.comments_count,
-//         // comments_count: x.comments_count.unwrap_or_default(),
-//     })
-//     .fetch_all(db)
-//     .await
-// }
 
 async fn fetch_popular_tags(cx: &Cx) -> Result<Vec<String>, sqlx::Error> {
     let rows = sqlx::query!(
@@ -520,4 +430,15 @@ LIMIT 20
     .await?;
 
     Ok(rows.into_iter().map(|r| r.tag).collect())
+}
+
+fn urlencoding(s: String) -> String {
+    // minimal percent-encoding for query values
+    s.chars()
+        .map(|c| match c {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
+            ' ' => "+".to_string(),
+            _ => format!("%{:02X}", c as u32),
+        })
+        .collect()
 }
