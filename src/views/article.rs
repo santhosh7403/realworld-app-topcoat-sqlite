@@ -14,6 +14,7 @@ use topcoat::{
     view::{View, component, view},
 };
 
+use crate::database::db;
 use crate::models::article::{Article, UserPreview}; // adjust paths to your crate
 
 // ---------------------------------------------------------------------------
@@ -83,6 +84,59 @@ async fn article_page(cx: &Cx) -> Result<impl View> {
                     logged_user: logged_user.clone(),
                     is_preview: false
                 )
+
+                // Favorite / Follow
+                <div class="flex flex-wrap items-center gap-4 mb-5">
+                    if logged_user.is_some() && logged_user.as_ref() != Some(&article.author.username) {
+                        <form method="post" action=(format!("/article/{}/favorite", article.slug))>
+                            <button
+                                type="submit"
+                                class=(if article.fav {
+                                    "text-yellow-500 hover:text-gray-500 transition-colors duration-200"
+                                } else {
+                                    "text-gray-500 hover:text-yellow-500 transition-colors duration-200"
+                                })
+                            >
+                                <i
+                                    class=(if article.fav {
+                                        "fas fa-star"
+                                    } else {
+                                        "far fa-star"
+                                    })
+                                ></i>
+                                " Favourite"
+                            </button>
+                        </form>
+                        <form method="post" action=(format!("/article/{}/follow", article.slug))>
+                            <button
+                                type="submit"
+                                class=(if article.author.following {
+                                    "text-yellow-500 hover:text-gray-400"
+                                } else {
+                                    "text-gray-500 hover:text-yellow-500"
+                                })
+                            >
+                                <i
+                                    class=(if article.author.following {
+                                        "fa-solid fa-person-circle-minus"
+                                    } else {
+                                        "fa-solid fa-person-circle-plus"
+                                    })
+                                ></i>
+                                " "
+                                (if article.author.following {
+                                    format!("Unfollow {}", article.author.username)
+                                } else {
+                                    format!("Follow {}", article.author.username)
+                                })
+                            </button>
+                        </form>
+                    }
+                    <span class=(if article.favorites_count > 0 { "text-yellow-500" } else { "" })>
+                        "Favourites: "
+                        (article.favorites_count.to_string())
+                    </span>
+                </div>
 
                 // Title + author + back
                 <div class="flex justify-between mb-5">
@@ -374,6 +428,90 @@ async fn post_comment(
     Ok(topcoat::router::error::see_other(format!(
         "/article/{slug}"
     )))
+}
+
+#[route(POST "/article/{slug}/favorite")]
+async fn favorite_article(cx: &Cx) -> Result<impl topcoat::router::response::IntoResponse> {
+    let slug = path_param::<Slug>(cx)?.clone();
+
+    let current_user = crate::auth::current_user(cx).await?;
+    let Some(user_id) = current_user.map(|u| u.id) else {
+        return Err(topcoat::router::error::unauthorized().into());
+    };
+
+    let exists: Option<i64> = sqlx::query_scalar(
+        "SELECT 1 FROM FavArticles WHERE article = ? AND user_id = ?",
+    )
+    .bind(&slug)
+    .bind(user_id)
+    .fetch_optional(db(cx))
+    .await
+    .map_err(|e| bad_request(format!("db error: {e}")))?;
+
+    if exists.is_some() {
+        sqlx::query("DELETE FROM FavArticles WHERE article = ? AND user_id = ?")
+            .bind(&slug)
+            .bind(user_id)
+            .execute(db(cx))
+            .await
+            .map_err(|e| bad_request(format!("db error: {e}")))?;
+    } else {
+        sqlx::query("INSERT INTO FavArticles(article, user_id) VALUES (?, ?)")
+            .bind(&slug)
+            .bind(user_id)
+            .execute(db(cx))
+            .await
+            .map_err(|e| bad_request(format!("db error: {e}")))?;
+    }
+
+    Ok(topcoat::router::error::see_other(format!("/article/{}", slug)))
+}
+
+#[route(POST "/article/{slug}/follow")]
+async fn follow_author(cx: &Cx) -> Result<impl topcoat::router::response::IntoResponse> {
+    let slug = path_param::<Slug>(cx)?.clone();
+
+    let current_user = crate::auth::current_user(cx).await?;
+    let Some(follower_id) = current_user.map(|u| u.id) else {
+        return Err(topcoat::router::error::unauthorized().into());
+    };
+
+    let author_id: i64 = sqlx::query_scalar("SELECT author_id FROM Articles WHERE slug = ?")
+        .bind(&slug)
+        .fetch_one(db(cx))
+        .await
+        .map_err(|e| bad_request(format!("db error: {e}")))?;
+
+    if author_id == follower_id {
+        return Err(bad_request("cannot follow yourself").into());
+    }
+
+    let exists: Option<i64> = sqlx::query_scalar(
+        "SELECT 1 FROM Follows WHERE follower_id = ? AND influencer_id = ?",
+    )
+    .bind(follower_id)
+    .bind(author_id)
+    .fetch_optional(db(cx))
+    .await
+    .map_err(|e| bad_request(format!("db error: {e}")))?;
+
+    if exists.is_some() {
+        sqlx::query("DELETE FROM Follows WHERE follower_id = ? AND influencer_id = ?")
+            .bind(follower_id)
+            .bind(author_id)
+            .execute(db(cx))
+            .await
+            .map_err(|e| bad_request(format!("db error: {e}")))?;
+    } else {
+        sqlx::query("INSERT INTO Follows(follower_id, influencer_id) VALUES (?, ?)")
+            .bind(follower_id)
+            .bind(author_id)
+            .execute(db(cx))
+            .await
+            .map_err(|e| bad_request(format!("db error: {e}")))?;
+    }
+
+    Ok(topcoat::router::error::see_other(format!("/article/{}", slug)))
 }
 
 path_param!(id: i64, error = bad_request);
