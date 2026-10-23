@@ -140,10 +140,16 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
     let orig_email = signal(cx, || user.email.clone());
 
     Ok(view! {
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-60">
+        <div
+            class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-60"
+        >
             <title>"Settings"</title>
-            <div class="block rounded-lg bg-white dark:bg-gray-800 w-2/5 p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] z-70">
-                <h5 class="mb-5 text-xl font-medium leading-tight text-neutral-800 dark:text-gray-200">
+            <div
+                class="block rounded-lg bg-white dark:bg-gray-800 w-2/5 p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] z-70"
+            >
+                <h5
+                    class="mb-5 text-xl font-medium leading-tight text-neutral-800 dark:text-gray-200"
+                >
                     "Update Your Settings."
                 </h5>
 
@@ -198,7 +204,11 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
                             name="password"
                             class=(INPUT_CLASS)
                             placeholder="New password"
-                            :type=$(if passwd_visible.get() { "text" } else { "password" })
+                            :type=$(if passwd_visible.get() {
+                                "text"
+                            } else {
+                                "password"
+                            })
                             :value=$(pw.get())
                             @input=$(|e: Event| {
                                 let p = e.target.value;
@@ -215,11 +225,7 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
                                 } else {
                                     !c.is_empty()
                                 };
-                                let matched = if both_filled {
-                                    p == c
-                                } else {
-                                    false
-                                };
+                                let matched = if both_filled { p == c } else { false };
 
                                 let new_status = if pw_empty {
                                     "".to_owned()
@@ -260,7 +266,11 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
                             name="confirm_password"
                             class=(INPUT_CLASS)
                             placeholder="Confirm password"
-                            :type=$(if passwd_visible.get() { "text" } else { "password" })
+                            :type=$(if passwd_visible.get() {
+                                "text"
+                            } else {
+                                "password"
+                            })
                             :value=$(confirm_pw.get())
                             @input=$(|e: Event| {
                                 let c = e.target.value;
@@ -277,11 +287,7 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
                                 } else {
                                     !c.is_empty()
                                 };
-                                let matched = if both_filled {
-                                    p == c
-                                } else {
-                                    false
-                                };
+                                let matched = if both_filled { p == c } else { false };
 
                                 let new_status = if pw_empty {
                                     "".to_owned()
@@ -335,8 +341,10 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
 
                     <div class="mb-5 text-xs text-gray-500">
                         <p>
-                            "DEBUG: image=" $(image.get())
-                            " status=" $(update_status.get())
+                            "DEBUG: image="
+                            $(image.get())
+                            " status="
+                            $(update_status.get())
                         </p>
                     </div>
 
@@ -368,12 +376,13 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
                                     email.get().to_owned(),
                                     pw.get().to_owned(),
                                     confirm_pw.get().to_owned(),
-                                )
-                                .await;
+                                ).await;
 
                                 if resp.kind == "success_logout" {
                                     update_status.set(resp.message);
-                                    raw!("const f = document.createElement('form'); f.method = 'POST'; f.action = '/logout'; document.body.appendChild(f); f.submit();");
+                                    raw!(
+                                        "const f = document.createElement('form'); f.method = 'POST'; f.action = '/logout'; document.body.appendChild(f); f.submit();"
+                                    );
                                 } else if resp.kind == "success" {
                                     orig_image.set(image.get());
                                     orig_bio.set(bio.get());
