@@ -4,11 +4,9 @@ use topcoat::{
     context::Cx,
     router::{error::see_other, page},
     runtime::{Event, procedure, record, signal},
-    session,
     view::{View, view},
 };
 
-use crate::database::db;
 use crate::models::User;
 
 const INPUT_CLASS: &str = "shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 dark:bg-gray-700 leading-tight focus:ring";
@@ -58,17 +56,6 @@ fn update_user_validation(
         })
 }
 
-async fn logout_session(cx: &Cx) -> Result<()> {
-    if let Some(token_hash) = session::stop(cx).await? {
-        sqlx::query("DELETE FROM sessions WHERE token_hash = ?")
-            .bind(token_hash.as_ref())
-            .execute(db(cx))
-            .await
-            .map_err(topcoat::Error::from)?;
-    }
-    Ok(())
-}
-
 #[procedure]
 async fn settings_update(
     cx: &Cx,
@@ -105,9 +92,6 @@ async fn settings_update(
     match user.update(cx).await {
         Ok(_) => {
             if password_change {
-                if let Err(e) = logout_session(cx).await {
-                    tracing::error!("logout after password reset failed: {e}");
-                }
                 Ok(SettingsResponse {
                     kind: "success_logout".to_owned(),
                     message: "Successful.".to_owned(),
@@ -389,7 +373,7 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
 
                                 if resp.kind == "success_logout" {
                                     update_status.set(resp.message);
-                                    raw!("window.location.href = '/login'");
+                                    raw!("const f = document.createElement('form'); f.method = 'POST'; f.action = '/logout'; document.body.appendChild(f); f.submit();");
                                 } else if resp.kind == "success" {
                                     orig_image.set(image.get());
                                     orig_bio.set(bio.get());
