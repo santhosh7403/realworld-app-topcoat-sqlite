@@ -9,6 +9,8 @@ use topcoat::{
     session::{RouterBuilderSessionExt, SessionConfig},
     view::{View, component, view},
 };
+use topcoat::router::content::Form;
+use serde::Deserialize;
 
 mod database;
 mod models;
@@ -50,11 +52,19 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 #[layout("/")]
 async fn root_layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
     let current_user = crate::auth::current_user(cx).await?;
-    // println!("At layout current_user is : {:#?}", current_user);
+    let (theme_class, server_theme) = if let Some(u) = current_user.clone() {
+        let dark = crate::models::User::get(&u.username, cx)
+            .await
+            .map(|x| x.theme_mode() == "dark")
+            .unwrap_or(true);
+        (if dark { "dark".to_string() } else { String::new() }, true)
+    } else {
+        ("dark".to_string(), false)
+    };
     let user_in = signal(cx, || current_user);
     Ok(view! {
         <!DOCTYPE html>
-        <html lang="en" class="dark">
+        <html lang="en" class=(theme_class) data-server-theme=(if server_theme { "true" } else { "" })>
             <head>
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -96,17 +106,59 @@ async fn root_layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                     }
                     @media (min-width: 768px) {
                         .navitem-icon { font-size: 1.5rem; }
-                    }"#
+                    }
+                    .theme-moon { display: none; }
+                    .dark .theme-moon { display: block; }
+                    .dark .theme-sun { display: none; }"#
                 </style>
 
-                topcoat::runtime::script()
-                topcoat::dev::script()
+                <script>
+                    r#"                    function toggleTheme() {
+                        var html = document.documentElement;
+                        var isDark = html.classList.toggle('dark');
+                        try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (e) {}
+                        // Persist to DB for logged-in users
+                        try {
+                            fetch('/theme', {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                body: 'theme=' + encodeURIComponent(isDark ? 'dark' : 'light')
+                            });
+                        } catch (e) {}
+                    }
+                    function togglePassword() {
+                        var input = document.getElementById('password');
+                        var icon = document.getElementById('password-eye');
+                        if (!input || !icon) return;
+                        if (input.type === 'password') {
+                            input.type = 'text';
+                            icon.classList.remove('fa-eye-slash');
+                            icon.classList.add('fa-eye');
+                        } else {
+                            input.type = 'password';
+                            icon.classList.remove('fa-eye');
+                            icon.classList.add('fa-eye-slash');
+                        }
+                    }
+                    (function() {
+                        try {
+                            if (document.documentElement.dataset.serverTheme === 'true') return;
+                            var saved = localStorage.getItem('theme');
+                            if (saved === 'light') {
+                                document.documentElement.classList.remove('dark');
+                            } else {
+                                document.documentElement.classList.add('dark');
+                            }
+                        } catch (e) {}
+                    })();"#
+                </script>
             </head>
             <body
                 class="bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col"
             >
                 navbar(user_in: &user_in)
-                <main class="flex-1 container mx-auto px-4 py-8">(slot)</main>
+                <main class="flex-1 w-full px-4 py-8">(slot)</main>
                 footer()
             </body>
         </html>
@@ -179,7 +231,7 @@ async fn navbar(
                             method="POST"
                             action=(href!(crate::views::logout::logout))
                         >
-                            <button>
+                            <button class="navitem group">
                                 <i class="fa-solid fa-right-from-bracket navitem-icon"></i>
                                 <span class="text-xs md:text-base mt-1 font-semibold">
                                     "Logout"
@@ -204,14 +256,15 @@ async fn navbar(
                         </a>
                     }
 
-                    // Theme toggle (visual stub)
+                    // Theme toggle (working)
                     <button
                         type="button"
+                        onclick="toggleTheme()"
                         class="navitem group border-l border-gray-600 pl-3 ml-2"
-                        title="Toggle theme (stub)"
+                        title="Toggle theme"
                     >
                         <svg
-                            class="w-6 h-6 md:w-7 md:h-7 text-yellow-400"
+                            class="theme-sun w-6 h-6 md:w-7 md:h-7 text-yellow-400"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke-width="1.5"
@@ -221,6 +274,19 @@ async fn navbar(
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
                                 d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"
+                            />
+                        </svg>
+                        <svg
+                            class="theme-moon w-6 h-6 md:w-7 md:h-7 text-gray-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke-width="1.5"
+                            stroke="currentColor"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"
                             />
                         </svg>
                     </button>
@@ -315,6 +381,22 @@ async fn footer() -> Result<impl View> {
 //         )
 //     })
 // }
+
+#[derive(Deserialize)]
+struct ThemeForm {
+    theme: String,
+}
+
+#[page(POST "/theme")]
+async fn update_theme(cx: &Cx, Form(form): Form<ThemeForm>) -> Result<impl View> {
+    if let Some(user_preview) = crate::auth::current_user(cx).await? {
+        if let Ok(mut user) = crate::models::User::get(&user_preview.username, cx).await {
+            user = user.set_theme_mode(form.theme);
+            let _ = user.update_theme_mode(cx).await;
+        }
+    }
+    Ok(view! { "" })
+}
 
 // Catch-all 404
 #[page("/{*path}")]

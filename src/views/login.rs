@@ -63,7 +63,6 @@ async fn login_submit(cx: &Cx, Form(form): Form<LoginForm>) -> Result<impl View>
 /// Shared markup for both GET and failed POST.
 fn login_view(cx: &Cx, error: Option<String>) -> impl View {
     let __cx = cx;
-    let passwd_visible = signal(cx, || false);
 
     view! {
         <div
@@ -109,27 +108,15 @@ fn login_view(cx: &Cx, error: Option<String>) -> impl View {
                             class="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-200 dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                             id="password"
                             name="password"
-                            :type=$(if passwd_visible.get() {
-                                "text"
-                            } else {
-                                "password"
-                            })
+                            type="password"
                             placeholder="password"
                             required=""
                         >
                         <span
                             class="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer text-gray-500 dark:text-gray-400"
-                            @click=$(|_e: Event| passwd_visible.set(
-                                    !passwd_visible.get(),
-                                ))
+                            onclick="togglePassword()"
                         >
-                            <i
-                                :class=$(if passwd_visible.get() {
-                                    "far fa-eye"
-                                } else {
-                                    "far fa-eye-slash"
-                                })
-                            ></i>
+                            <i id="password-eye" class="far fa-eye-slash"></i>
                         </span>
                     </div>
 

@@ -123,6 +123,8 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
                             <button type="submit" class="px-2 hover:text-blue-500">
                                 <i class="fas fa-magnifying-glass"></i>
                             </button>
+                        </form>
+                        <div class="min-w-[7rem]">
                             if search_mode {
                                 <a
                                     href="/"
@@ -130,34 +132,11 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
                                 >
                                     "Clear Search"
                                 </a>
+                            } else {
+                                <span class="invisible">"Clear Search"</span>
                             }
-                        </form>
+                        </div>
 
-                        // Tag filter
-                        <form method="get" action="/" class="flex">
-                            <input type="hidden" name="page" value="0" />
-                            <input
-                                type="hidden"
-                                name="amount"
-                                value=(amount.to_string())
-                            />
-                            <input
-                                type="hidden"
-                                name="my_feed"
-                                value=(my_feed.to_string())
-                            />
-                            <input
-                                class="shadow appearance-none bg-white dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded py-1 px-3 text-gray-700 leading-tight focus:outline-none"
-                                type="text"
-                                name="tag"
-                                minlength="2"
-                                placeholder="Filter by tag…"
-                                value=(tag.clone())
-                            />
-                            <button type="submit" class="px-2 hover:text-blue-500">
-                                <i class="fas fa-magnifying-glass"></i>
-                            </button>
-                        </form>
                         items_per_page(
                             amount: amount,
                             tag: tag.clone(),

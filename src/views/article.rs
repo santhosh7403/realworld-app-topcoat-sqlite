@@ -251,15 +251,19 @@ async fn comment_section(
                         <textarea
                             class="focus:shadow-outline w-full border-b dark:border-gray-600 appearance-none rounded px-3 py-2 leading-tight text-sm text-gray-700 dark:text-gray-200 dark:bg-gray-700 shadow focus:outline-none"
                             name="body"
+                            id="comment-body"
                             rows="3"
-                            minlength="3"
+                            minlength="2"
                             required=""
-                            placeholder="Write a new comment...(min length 3 char)"
+                            placeholder="Write a new comment...(min 2 chars)"
+                            oninput="document.getElementById('post-comment-btn').disabled = this.value.trim().length < 2;"
                         ></textarea>
                     </div>
                     <button
                         type="submit"
-                        class="rounded px-3 py-1 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800"
+                        id="post-comment-btn"
+                        disabled=""
+                        class="rounded px-3 py-1 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                         "Post Comment"
                     </button>
@@ -351,8 +355,9 @@ async fn post_comment(
 ) -> Result<impl topcoat::router::response::IntoResponse> {
     let slug = path_param::<Slug>(cx)?.clone();
 
-    // TODO: replace with real session
-    let logged_user = None::<i64>;
+    // Resolve logged-in user from session
+    let current_user = crate::auth::current_user(cx).await?;
+    let logged_user = current_user.map(|u| u.id);
     let Some(user_id) = logged_user else {
         return Err(topcoat::router::error::unauthorized().into());
     };
@@ -377,7 +382,8 @@ path_param!(id: i64, error = bad_request);
 async fn delete_comment_route(cx: &Cx) -> Result<impl topcoat::router::response::IntoResponse> {
     let id = *path_param::<Id>(cx)?;
 
-    let logged_user = None::<i64>;
+    let current_user = crate::auth::current_user(cx).await?;
+    let logged_user = current_user.map(|u| u.id);
     let Some(user_id) = logged_user else {
         return Err(topcoat::router::error::unauthorized().into());
     };
