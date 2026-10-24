@@ -27,13 +27,13 @@ pub struct ResetEmailForm {
 #[derive(Deserialize)]
 pub struct ResetPasswordForm {
     password: String,
-    confirm: String,
+    confirm_password: String,
 }
 
 /// Step 1 — GET /reset_password : show the email form.
 #[page("/reset_password")]
 pub async fn reset_password_page(cx: &Cx) -> Result<impl View> {
-    Ok(reset_email_view(cx, None))
+    Ok(reset_email_view(cx, None, None))
 }
 
 /// Step 1 — POST /reset_password : validate email, issue a reset token,
@@ -54,6 +54,7 @@ pub async fn reset_password_request(
             return Ok(reset_email_view(
                 cx,
                 Some("Provided email not found.".into()),
+                None,
             ));
         }
     };
@@ -85,8 +86,13 @@ pub async fn reset_password_request(
     // Dummy email: print the link that would go inside the email for testing.
     println!("RESET PASSWORD LINK (dummy email): {uri}");
 
-    // Simulate the user clicking the link from the email → open step 2.
-    Err(see_other(&format!("/reset_password/{token}")).into())
+    // Stay on step 1 and show a success message (clicking the actual email link
+    // opens step 2 — do not redirect here).
+    Ok(reset_email_view(
+        cx,
+        None,
+        Some("Email sent. Check email and click the reset url link inside.".into()),
+    ))
 }
 
 /// Step 2 — GET /reset_password/{token} : show the password form when the
@@ -122,7 +128,7 @@ pub async fn reset_password_set_page(cx: &Cx) -> Result<impl View> {
 pub async fn reset_password_set(cx: &Cx, Form(form): Form<ResetPasswordForm>) -> Result<impl View> {
     let token: &str = path_param::<Token>(cx);
 
-    if form.password != form.confirm {
+    if form.password != form.confirm_password {
         return Ok(reset_password_view(
             cx,
             token,
@@ -185,7 +191,11 @@ pub async fn reset_password_set(cx: &Cx, Form(form): Form<ResetPasswordForm>) ->
 }
 
 /// Shared markup for the step 1 email form.
-fn reset_email_view(cx: &Cx, error: Option<String>) -> impl View {
+fn reset_email_view(
+    cx: &Cx,
+    error: Option<String>,
+    success: Option<String>,
+) -> impl View {
     let __cx = cx;
     view! {
         <div
@@ -235,6 +245,9 @@ fn reset_email_view(cx: &Cx, error: Option<String>) -> impl View {
 
                     if let Some(msg) = error {
                         <p class="mb-5 text-red-500 font-medium">(msg)</p>
+                    }
+                    if let Some(msg) = success {
+                        <p class="mb-5 text-green-500 font-medium">(msg)</p>
                     }
                 </form>
             </div>
