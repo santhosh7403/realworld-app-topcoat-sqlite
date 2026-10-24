@@ -202,6 +202,7 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
                     <div class="mb-5 relative">
                         <input
                             name="password"
+                            autocomplete="new-password"
                             class=(INPUT_CLASS)
                             placeholder="New password"
                             :type=$(if passwd_visible.get() {
@@ -264,6 +265,7 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
                     <div class="mb-5 relative">
                         <input
                             name="confirm_password"
+                            autocomplete="new-password"
                             class=(INPUT_CLASS)
                             placeholder="Confirm password"
                             :type=$(if passwd_visible.get() {
