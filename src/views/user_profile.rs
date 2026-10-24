@@ -70,7 +70,6 @@ path_param!(username);
 async fn profile(cx: &Cx) -> Result<impl View> {
     // You can also read query params for pagination here if you want
     let username = path_param::<Username>(cx);
-    println!("At page profile : {}", username);
     Ok(view! {
         <div class="bg-gray-200 dark:bg-gray-900">
             <div

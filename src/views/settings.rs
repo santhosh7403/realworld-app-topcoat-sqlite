@@ -339,18 +339,26 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
                         </p>
                     </div>
 
-                    <div class="mb-5 text-xs text-gray-500">
-                        <p>
-                            "DEBUG: image="
-                            $(image.get())
-                            " status="
-                            $(update_status.get())
-                        </p>
-                    </div>
-
                     <div class="flex justify-between mb-5">
                         <button
                             type="button"
+                            :disabled=$(
+                                if image.get() != orig_image.get() {
+                                    false
+                                } else if bio.get() != orig_bio.get() {
+                                    false
+                                } else if email.get() != orig_email.get() {
+                                    false
+                                } else if pw.get().is_empty() {
+                                    true
+                                } else if pw.get() != confirm_pw.get() {
+                                    true
+                                } else if pw.get().len() < 4 {
+                                    true
+                                } else {
+                                    false
+                                }
+                            )
                             class="bg-blue-700 hover:bg-blue-800 px-5 py-3 text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-700"
                             @click=$(async |_e: Event| {
                                 let resp = settings_update(
