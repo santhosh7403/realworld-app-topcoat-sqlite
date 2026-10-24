@@ -1,4 +1,4 @@
-use serde::Deserialize;
+// use serde::Deserialize;
 use topcoat::{
     Result,
     context::Cx,
@@ -352,23 +352,6 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
                         <button
                             type="button"
                             class="bg-blue-700 hover:bg-blue-800 px-5 py-3 text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-700"
-                            :disabled=$(if image.get() == orig_image.get() {
-                                if bio.get() == orig_bio.get() {
-                                    if email.get() == orig_email.get() {
-                                        if pw.get().is_empty() {
-                                            confirm_pw.get().is_empty()
-                                        } else {
-                                            false
-                                        }
-                                    } else {
-                                        false
-                                    }
-                                } else {
-                                    false
-                                }
-                            } else {
-                                false
-                            })
                             @click=$(async |_e: Event| {
                                 let resp = settings_update(
                                     image.get().to_owned(),
@@ -404,19 +387,16 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
                             $(button_label.get())
                         </button>
 
-                        <button
-                            type="button"
+                        <a
+                            href="/"
                             :class=$(if update_status.get().starts_with("Successful.") {
                                 "bg-blue-700 hover:bg-blue-800 px-5 py-3 text-white rounded-lg"
                             } else {
                                 "bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 px-5 py-3 text-white rounded-lg"
                             })
-                            @click=$(async |_e: Event| {
-                                raw!("window.location.href = '/'")
-                            })
                         >
                             $(cancel_label.get())
-                        </button>
+                        </a>
                     </div>
                 </form>
             </div>

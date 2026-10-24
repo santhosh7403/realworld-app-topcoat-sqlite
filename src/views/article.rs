@@ -76,13 +76,11 @@ async fn article_page(cx: &Cx) -> Result<impl View> {
     Ok(view! {
         <div class="bg-opacity-60 inset-0 z-50 flex items-center justify-center py-6">
             <div
-                class="z-70 block w-4/5 max-w-3xl rounded-lg bg-white dark:bg-gray-800 p-4 shadow-lg mx-auto"
+                class="z-70 block w-full max-w-6xl rounded-lg bg-white dark:bg-gray-800 p-4 shadow-lg mx-auto"
             >
                 // Meta row
                 article_meta(
-                    article: article.clone(),
-                    logged_user: logged_user.clone(),
-                    is_preview: false
+                    article: article.clone()
                 )
 
                 // Favorite / Follow
@@ -223,11 +221,7 @@ async fn article_page(cx: &Cx) -> Result<impl View> {
 // ---------------------------------------------------------------------------
 
 #[component]
-async fn article_meta(
-    article: Article,
-    logged_user: Option<String>,
-    is_preview: bool,
-) -> Result<impl View> {
+async fn article_meta(article: Article) -> Result<impl View> {
     Ok(view! {
         <div
             class="flex flex-wrap items-center gap-4 mb-4 text-gray-700 dark:text-gray-300"
@@ -439,14 +433,13 @@ async fn favorite_article(cx: &Cx) -> Result<impl topcoat::router::response::Int
         return Err(topcoat::router::error::unauthorized().into());
     };
 
-    let exists: Option<i64> = sqlx::query_scalar(
-        "SELECT 1 FROM FavArticles WHERE article = ? AND user_id = ?",
-    )
-    .bind(&slug)
-    .bind(user_id)
-    .fetch_optional(db(cx))
-    .await
-    .map_err(|e| bad_request(format!("db error: {e}")))?;
+    let exists: Option<i64> =
+        sqlx::query_scalar("SELECT 1 FROM FavArticles WHERE article = ? AND user_id = ?")
+            .bind(&slug)
+            .bind(user_id)
+            .fetch_optional(db(cx))
+            .await
+            .map_err(|e| bad_request(format!("db error: {e}")))?;
 
     if exists.is_some() {
         sqlx::query("DELETE FROM FavArticles WHERE article = ? AND user_id = ?")
@@ -464,7 +457,10 @@ async fn favorite_article(cx: &Cx) -> Result<impl topcoat::router::response::Int
             .map_err(|e| bad_request(format!("db error: {e}")))?;
     }
 
-    Ok(topcoat::router::error::see_other(format!("/article/{}", slug)))
+    Ok(topcoat::router::error::see_other(format!(
+        "/article/{}",
+        slug
+    )))
 }
 
 #[route(POST "/article/{slug}/follow")]
@@ -486,14 +482,13 @@ async fn follow_author(cx: &Cx) -> Result<impl topcoat::router::response::IntoRe
         return Err(bad_request("cannot follow yourself").into());
     }
 
-    let exists: Option<i64> = sqlx::query_scalar(
-        "SELECT 1 FROM Follows WHERE follower_id = ? AND influencer_id = ?",
-    )
-    .bind(follower_id)
-    .bind(author_id)
-    .fetch_optional(db(cx))
-    .await
-    .map_err(|e| bad_request(format!("db error: {e}")))?;
+    let exists: Option<i64> =
+        sqlx::query_scalar("SELECT 1 FROM Follows WHERE follower_id = ? AND influencer_id = ?")
+            .bind(follower_id)
+            .bind(author_id)
+            .fetch_optional(db(cx))
+            .await
+            .map_err(|e| bad_request(format!("db error: {e}")))?;
 
     if exists.is_some() {
         sqlx::query("DELETE FROM Follows WHERE follower_id = ? AND influencer_id = ?")
@@ -511,7 +506,10 @@ async fn follow_author(cx: &Cx) -> Result<impl topcoat::router::response::IntoRe
             .map_err(|e| bad_request(format!("db error: {e}")))?;
     }
 
-    Ok(topcoat::router::error::see_other(format!("/article/{}", slug)))
+    Ok(topcoat::router::error::see_other(format!(
+        "/article/{}",
+        slug
+    )))
 }
 
 path_param!(id: i64, error = bad_request);

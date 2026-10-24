@@ -3,7 +3,7 @@ use argon2::{
     Argon2,
     password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
 };
-use ref_cast::RefCast;
+// use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 
 use topcoat::context::Cx;
@@ -267,4 +267,3 @@ pub struct UserPreview {
     pub id: i64,
     pub username: String,
 }
-

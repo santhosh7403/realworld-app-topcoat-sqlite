@@ -4,7 +4,6 @@ use topcoat::context::Cx;
 #[derive(Clone, Debug)]
 pub struct Comment {
     pub id: i64,
-    pub article: String,
     pub username: String,
     pub body: String,
     pub created_at: String,
@@ -22,7 +21,6 @@ pub async fn fetch_comments(cx: &Cx, slug: &str) -> Result<Vec<Comment>, sqlx::E
     )
     .map(|x| Comment {
         id: x.id,
-        article: x.article,
         username: x.username,
         body: x.body,
         created_at: x.created_at.format(crate::models::DATE_FORMAT).to_string(),

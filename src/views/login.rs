@@ -3,17 +3,12 @@ use serde::Deserialize;
 use topcoat::{
     Result,
     context::Cx,
-    router::{
-        content::Form,
-        error::{SeeOther, see_other},
-        href, page, route,
-    },
-    runtime::{Event, signal},
+    router::{content::Form, error::see_other, page},
     session,
     view::{View, view},
 };
 
-use crate::models::UserPreview;
+// use crate::models::UserPreview;
 // use sqlx::SqlitePool;
 
 // use crate::auth;
@@ -47,8 +42,13 @@ async fn login_submit(cx: &Cx, Form(form): Form<LoginForm>) -> Result<impl View>
             // Start a fresh session token (prevents session fixation).
             let session = session::start(cx).await?;
             persist_session(cx, user_id, &session).await?;
+            // Apply the user's persisted items-per-page preference on login.
+            let amount = crate::models::User::get(&form.username, cx)
+                .await
+                .map(|u| u.per_page_amount())
+                .unwrap_or(10);
             // 303 See Other → home
-            Err(see_other("/").into())
+            Err(see_other(&format!("/?amount={}", amount)).into())
         }
         Err(_) => {
             // Re-render the form with an error message.

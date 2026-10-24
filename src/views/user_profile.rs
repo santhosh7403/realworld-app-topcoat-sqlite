@@ -1,7 +1,6 @@
-use sqlx::SqlitePool;
 use topcoat::{
     Result,
-    context::{Cx, app_context},
+    context::Cx,
     router::{page, parse_query_params, path_param, query_params},
     view::{View, component, view},
 };
@@ -22,9 +21,6 @@ impl ProfileQuery {
     fn page(&self) -> i64 {
         self.page.unwrap_or(0).max(0)
     }
-    fn amount(&self) -> i64 {
-        self.amount.unwrap_or(10).clamp(1, 100)
-    }
 
     fn favourites(&self) -> bool {
         self.favourites.unwrap_or(false)
@@ -36,7 +32,6 @@ impl ProfileQuery {
 #[derive(Clone)]
 pub struct UserProfileModel {
     pub user: User,
-    pub following: Option<bool>,
 }
 
 // ---------- data access (no server functions needed) ----------
@@ -59,46 +54,12 @@ pub struct UserProfileModel {
 // }
 
 async fn load_user_profile(cx: &Cx, username: &str) -> Result<UserProfileModel> {
-    let pool = db(cx);
-
     let user = crate::models::User::get(username, cx).await.map_err(|e| {
         tracing::error!("user_profile: {e:?}");
         topcoat::Error::msg("Could not retrieve user")
     })?;
 
-    let current_user = crate::auth::current_user(cx).await?;
-
-    let current_user_id = if let Some(u) = current_user {
-        Some(u.id)
-    } else {
-        None
-    };
-
-    let mut following = None;
-
-    // example of checking follow status – adjust to your auth
-    if let Some(logged_user_id) = current_user_id {
-        let count: i64 = sqlx::query_scalar!(
-            r#"
-            SELECT count(*) FROM Follows
-            WHERE follower_id = $2 AND influencer_id = $1
-            "#,
-            user.id,
-            logged_user_id
-        )
-        .fetch_one(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("follow check: {e:?}");
-            topcoat::Error::msg("Could not check follow status")
-        })?;
-
-        if count == 1 {
-            following = Some(true);
-        }
-    }
-
-    Ok(UserProfileModel { user, following })
+    Ok(UserProfileModel { user })
 }
 
 // ---------- page ----------
@@ -133,13 +94,26 @@ async fn profile_page(cx: &Cx, username: &str) -> Result<impl View> {
     })?;
     let favourites = q.favourites();
     let page = q.page();
-    let amount = q.amount();
     let current_user = crate::auth::current_user(cx).await?;
 
-    let current_user_id = if let Some(u) = current_user {
+    let current_user_id = if let Some(u) = current_user.clone() {
         Some(u.id)
     } else {
         None
+    };
+
+    let amount = match q.amount {
+        Some(a) => a.clamp(1, 100),
+        None => {
+            if let Some(u) = current_user.as_ref() {
+                crate::models::User::get(&u.username, cx)
+                    .await
+                    .map(|x| x.per_page_amount().clamp(1, 100))
+                    .unwrap_or(10)
+            } else {
+                10
+            }
+        }
     };
 
     let articles = crate::models::article::Article::load_profile_articles(
@@ -278,10 +252,6 @@ async fn user_info(cx: &Cx, username: &str) -> Result<impl View> {
 }
 
 // ---------- helpers you will need ----------
-
-fn db(cx: &Cx) -> &SqlitePool {
-    &app_context::<crate::AppState>(cx).db
-}
 
 // /// Replace with your real session / auth helper
 // fn current_user_id(cx: &Cx) -> Option<i64> {

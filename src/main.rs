@@ -69,6 +69,8 @@ async fn root_layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <title>"My App — Topcoat"</title>
+                topcoat::dev::script()
+                topcoat::runtime::script()
 
                 // Tailwind via CDN for quick styling
                 <script src="https://cdn.tailwindcss.com"></script>
@@ -171,11 +173,8 @@ async fn root_layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
 
 #[component]
 async fn navbar(
-    cx: &Cx,
     user_in: &topcoat::runtime::Signal<Option<UserPreview>>,
 ) -> Result<impl View> {
-    // Stub: pretend user is logged out. Change to `true` to see logged-in menu.
-    let logged_in = true;
     // let username = "demo_user";
     // let user_in = signal(cx, || None::<crate::models::UserPreview>);
 
@@ -184,7 +183,7 @@ async fn navbar(
             <div
                 class="bg-gray-800 text-white shadow-lg rounded-b-xl px-4 py-3 md:py-4"
             >
-                <div class="flex justify-around items-center max-w-4xl mx-auto">
+                <div class="flex justify-around items-center max-w-7xl mx-auto">
                     // Home
                     <a href="/" class="navitem group">
                         <i class="fas fa-home navitem-icon"></i>
@@ -383,8 +382,24 @@ async fn footer() -> Result<impl View> {
 // }
 
 #[derive(Deserialize)]
+struct PerPageForm {
+    amount: i64,
+}
+
+#[derive(Deserialize)]
 struct ThemeForm {
     theme: String,
+}
+
+#[page(POST "/items-per-page")]
+async fn update_items_per_page(cx: &Cx, Form(form): Form<PerPageForm>) -> Result<impl View> {
+    if let Some(user_preview) = crate::auth::current_user(cx).await? {
+        if let Ok(mut user) = crate::models::User::get(&user_preview.username, cx).await {
+            user = user.set_per_page_amount(form.amount.clamp(1, 100));
+            let _ = user.update_per_page_amount(cx).await;
+        }
+    }
+    Ok(view! { "" })
 }
 
 #[page(POST "/theme")]

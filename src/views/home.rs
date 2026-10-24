@@ -22,9 +22,6 @@ impl HomeQuery {
     fn page(&self) -> i64 {
         self.page.unwrap_or(0).max(0)
     }
-    fn amount(&self) -> i64 {
-        self.amount.unwrap_or(10).clamp(1, 100)
-    }
     fn tag(&self) -> String {
         self.tag.as_deref().unwrap_or("").to_string()
     }
@@ -46,7 +43,6 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
         topcoat::router::error::bad_request(format!("invalid query: {e}"))
     })?;
     let page = q.page();
-    let amount = q.amount();
     let tag = q.tag();
     let my_feed = q.my_feed();
     let search_query = q.search();
@@ -60,10 +56,26 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
         None
     };
 
-    let user_id = if let Some(u) = current_user {
+    let user_id = if let Some(u) = current_user.clone() {
         Some(u.id)
     } else {
         None
+    };
+
+    // Default items-per-page to the logged-in user's persisted preference
+    // when no explicit amount was provided in the query string.
+    let amount = match q.amount {
+        Some(a) => a.clamp(1, 100),
+        None => {
+            if let Some(u) = current_user.as_ref() {
+                crate::models::User::get(&u.username, cx)
+                    .await
+                    .map(|x| x.per_page_amount().clamp(1, 100))
+                    .unwrap_or(10)
+            } else {
+                10
+            }
+        }
     };
 
     let tags = if search_mode {
@@ -99,15 +111,15 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
                 class="mx-auto sm:px-6 lg:px-8 px-2 py-2 text-gray-800 dark:text-gray-200"
             >
                 // Top bar: feed tabs | search | items-per-page
-                <div class="flex flex-wrap justify-between items-center gap-2 mb-2">
-                    <div class="flex">
+                <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-2 mb-2">
+                    <div class="flex justify-start">
                         feed_tabs(
                             my_feed: my_feed,
                             logged_in: logged_user.is_some(),
                             amount: amount
                         )
                     </div>
-                    <div class="flex items-center gap-3 flex-wrap">
+                    <div class="flex items-center justify-center gap-3 flex-wrap">
                         // Search box
                         <form method="get" action="/" class="flex items-center gap-1">
                             <input type="hidden" name="page" value="0" />
@@ -136,7 +148,8 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
                                 <span class="invisible">"Clear Search"</span>
                             }
                         </div>
-
+                    </div>
+                    <div class="flex justify-end">
                         items_per_page(
                             amount: amount,
                             tag: tag.clone(),
@@ -294,7 +307,7 @@ async fn items_per_page(amount: i64, tag: String, my_feed: bool, search: String)
                 id="articlesPerPage"
                 name="amount"
                 class="focus:shadow-outline rounded border dark:border-gray-600 px-1 py-1 leading-tight text-gray-700 dark:text-gray-200 dark:bg-gray-700 shadow focus:outline-none"
-                onchange="this.form.submit()"
+                onchange="const sel=this; fetch('/items-per-page',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'amount='+encodeURIComponent(sel.value)}).finally(()=>sel.form.submit());"
             >
                 <option value="1" selected=(amount == 1)>"1"</option>
                 <option value="5" selected=(amount == 5)>"5"</option>
