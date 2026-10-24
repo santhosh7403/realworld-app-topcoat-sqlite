@@ -191,11 +191,7 @@ pub async fn reset_password_set(cx: &Cx, Form(form): Form<ResetPasswordForm>) ->
 }
 
 /// Shared markup for the step 1 email form.
-fn reset_email_view(
-    cx: &Cx,
-    error: Option<String>,
-    success: Option<String>,
-) -> impl View {
+fn reset_email_view(cx: &Cx, error: Option<String>, success: Option<String>) -> impl View {
     let __cx = cx;
     view! {
         <div

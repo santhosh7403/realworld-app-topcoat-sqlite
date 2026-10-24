@@ -12,10 +12,6 @@ use topcoat::{
 };
 use uuid::Uuid;
 
-// ---------------------------------------------------------------------------
-// Constants & form types
-// ---------------------------------------------------------------------------
-
 const TITLE_MIN_LENGTH: usize = 4;
 const DESCRIPTION_MIN_LENGTH: usize = 4;
 const BODY_MIN_LENGTH: usize = 10;
@@ -284,8 +280,6 @@ async fn editor_edit(cx: &Cx) -> Result<impl View> {
 // POST route – create or update
 // ---------------------------------------------------------------------------
 
-/// Handles both create and update.
-/// Returns a redirect on success (or an error response).
 #[route(POST "/editor")]
 async fn editor_submit(
     cx: &Cx,
@@ -316,16 +310,3 @@ async fn editor_submit(
 
     Ok(see_other(format!("/article/{slug}")))
 }
-
-// ---------------------------------------------------------------------------
-// Helpers (stubs – replace with your real implementations)
-// ---------------------------------------------------------------------------
-
-// async fn get_current_username(_cx: &Cx) -> Option<String> {
-//     // Your session / cookie logic
-//     None
-// }
-
-// fn try_get_db(cx: &Cx) -> Option<&SqlitePool> {
-//     topcoat::context::try_app_context::<AppState>(cx).map(|s| &s.db)
-// }

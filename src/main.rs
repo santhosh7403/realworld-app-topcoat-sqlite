@@ -1,4 +1,6 @@
+use serde::Deserialize;
 use sqlx::sqlite::SqlitePoolOptions;
+use topcoat::router::content::Form;
 use topcoat::{
     Result,
     asset::{AssetBundle, RouterBuilderAssetExt},
@@ -9,8 +11,6 @@ use topcoat::{
     session::{RouterBuilderSessionExt, SessionConfig},
     view::{View, component, view},
 };
-use topcoat::router::content::Form;
-use serde::Deserialize;
 
 mod database;
 mod models;
@@ -57,7 +57,14 @@ async fn root_layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
             .await
             .map(|x| x.theme_mode() == "dark")
             .unwrap_or(true);
-        (if dark { "dark".to_string() } else { String::new() }, true)
+        (
+            if dark {
+                "dark".to_string()
+            } else {
+                String::new()
+            },
+            true,
+        )
     } else {
         ("dark".to_string(), false)
     };
@@ -172,9 +179,7 @@ async fn root_layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
 // ---------------------------------------------------------------------------
 
 #[component]
-async fn navbar(
-    user_in: &topcoat::runtime::Signal<Option<UserPreview>>,
-) -> Result<impl View> {
+async fn navbar(user_in: &topcoat::runtime::Signal<Option<UserPreview>>) -> Result<impl View> {
     // let username = "demo_user";
     // let user_in = signal(cx, || None::<crate::models::UserPreview>);
 
@@ -193,7 +198,6 @@ async fn navbar(
                     </a>
 
                     if user_in.get().is_some() {
-                        // if logged_in {
                         // New Article
                         <a href="/new-article" class="navitem group">
                             <i class="fa-solid fa-square-plus navitem-icon"></i>
@@ -221,11 +225,6 @@ async fn navbar(
                             </span>
                         </a>
 
-                        // Logout (stub)
-                        // <a href="/logout" class="navitem group">
-                        // <i class="fa-solid fa-right-from-bracket navitem-icon"></i>
-                        // <span class="text-xs md:text-base mt-1 font-semibold">"Logout"</span>
-                        // </a>
                         <form
                             method="POST"
                             action=(href!(crate::views::logout::logout))
@@ -310,76 +309,6 @@ async fn footer() -> Result<impl View> {
         </footer>
     })
 }
-
-// ---------------------------------------------------------------------------
-// Stub pages for each menu item
-// ---------------------------------------------------------------------------
-
-// #[page("/")]
-// async fn home() -> Result<impl View> {
-//     Ok(view! {
-//         <div class="max-w-2xl mx-auto">
-//             <h1 class="text-3xl font-bold mb-4">"Home"</h1>
-//             <p class="text-gray-600 dark:text-gray-400 mb-6">
-//                 "Welcome to the Topcoat port of the Dioxus realworld-app menu UI."
-//             </p>
-//             <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 space-y-3">
-//                 <p>"This is a placeholder page for the Home route."</p>
-//                 <p class="text-sm text-gray-500">
-//                     "Toggle "
-//                     <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">"logged_in"</code>
-//                     " in "
-//                     <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">"navbar()"</code>
-//                     " to switch between logged-out / logged-in menus."
-//                 </p>
-//             </div>
-//         </div>
-//     })
-// }
-
-// #[page("/new-article")]
-// async fn new_article() -> Result<impl View> {
-//     Ok(view! {
-//         stub_page(
-//             title: "New Article",
-//             description: "Create a new article — placeholder editor goes here."
-//         )
-//     })
-// }
-
-// Settings page is in views/settings.rs
-
-// #[page("/profile/{username}")]
-// async fn profile() -> Result<impl View> {
-//     Ok(view! {
-//         stub_page(
-//             title: "Profile",
-//             description: "User profile page — stub. (username from URL path)"
-//         )
-//     })
-// }
-
-// #[page("/login")]
-// async fn login() -> Result<impl View> {
-//     Ok(view! {
-//         stub_page(
-//             title: "Login",
-//             description: "Sign-in form placeholder."
-//         )
-//     })
-// }
-
-// Signup page is in views/signup.rs
-
-// #[page("/logout")]
-// async fn logout() -> Result<impl View> {
-//     Ok(view! {
-//         stub_page(
-//             title: "Logout",
-//             description: "Logout action — in a real app this would clear the session and redirect."
-//         )
-//     })
-// }
 
 #[derive(Deserialize)]
 struct PerPageForm {

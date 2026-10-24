@@ -4,7 +4,7 @@ use topcoat::{
     Result,
     context::Cx,
     router::{page, parse_query_params, query_params},
-    view::{View, component, view, Unescaped},
+    view::{Unescaped, View, component, view},
 };
 
 use crate::components::{article_preview::article_preview_list, prev_next_button::prev_next};
@@ -39,9 +39,8 @@ impl HomeQuery {
 
 #[page("/")]
 pub async fn home(cx: &Cx) -> Result<impl View> {
-    let q: HomeQuery = parse_query_params(cx).map_err(|e| {
-        topcoat::router::error::bad_request(format!("invalid query: {e}"))
-    })?;
+    let q: HomeQuery = parse_query_params(cx)
+        .map_err(|e| topcoat::router::error::bad_request(format!("invalid query: {e}")))?;
     let page = q.page();
     let tag = q.tag();
     let my_feed = q.my_feed();
@@ -293,7 +292,12 @@ async fn feed_tabs(my_feed: bool, logged_in: bool, amount: i64) -> Result<impl V
 // ---- Items per page ----
 
 #[component]
-async fn items_per_page(amount: i64, tag: String, my_feed: bool, search: String) -> Result<impl View> {
+async fn items_per_page(
+    amount: i64,
+    tag: String,
+    my_feed: bool,
+    search: String,
+) -> Result<impl View> {
     Ok(view! {
         <form method="get" action="/" class="flex items-center gap-1">
             <input type="hidden" name="page" value="0" />

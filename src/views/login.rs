@@ -8,20 +8,6 @@ use topcoat::{
     view::{View, view},
 };
 
-// use crate::models::UserPreview;
-// use sqlx::SqlitePool;
-
-// use crate::auth;
-
-/// Shared app state (already established in your app).
-// pub struct AppState {
-//     pub db: SqlitePool,
-// }
-
-// fn db(cx: &Cx) -> &SqlitePool {
-//     &app_context::<AppState>(cx).db
-// }
-
 #[derive(Debug, Deserialize)]
 pub struct LoginForm {
     username: String,
@@ -159,17 +145,6 @@ fn login_view(cx: &Cx, error: Option<String>) -> impl View {
 // ---------------------------------------------------------------------------
 
 async fn verify_credentials(cx: &Cx, username: &str, password: &str) -> Result<i64, ()> {
-    // let db = topcoat::context::try_app_context::<AppState>(cx)
-    //     .map(|s| &s.db)
-    //     .unwrap();
-    // let db = try_get_db(cx).ok_or(())?;
-
-    // let row: Option<(i64, String)> =
-    //     sqlx::query_as("SELECT id, password FROM users WHERE username = ?")
-    //         .bind(username)
-    //         .fetch_optional(db(cx))
-    //         .await
-    //         .map_err(|_| ())?;
     let row: Option<(i64, String)> =
         sqlx::query_as::<_, (i64, String)>("SELECT id, password FROM users WHERE username = ?")
             .bind(username)
@@ -181,11 +156,7 @@ async fn verify_credentials(cx: &Cx, username: &str, password: &str) -> Result<i
         return Err(());
     };
 
-    // Placeholder — use a real verifier:
-    // if argon2::verify_encoded(&hash, password.as_bytes()).is_ok() { Ok(id) } else { Err(()) }
     if crate::auth::verify_password(password, &hash) {
-        // if hash == password {
-        // NEVER compare plaintext in production
         Ok(id)
     } else {
         Err(())

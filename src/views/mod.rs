@@ -6,7 +6,4 @@ pub mod logout;
 pub mod reset_password;
 pub mod settings;
 pub mod signup;
-// pub mod signup2;
 pub mod user_profile;
-// pub mod search;
-// pub const DATE_FORMAT: &str = "%d/%m/%Y %H:%M";

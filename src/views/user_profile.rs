@@ -249,11 +249,3 @@ async fn user_info(cx: &Cx, username: &str) -> Result<impl View> {
         </div>
     })
 }
-
-// ---------- helpers you will need ----------
-
-// /// Replace with your real session / auth helper
-// fn current_user_id(cx: &Cx) -> Option<i64> {
-//     // e.g. try_request_context::<LoggedInUser>(cx).map(|u| u.id)
-//     None
-// }

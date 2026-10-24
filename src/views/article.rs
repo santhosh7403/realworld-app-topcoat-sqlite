@@ -1,7 +1,3 @@
-//! Route: GET  /article/{slug}
-//!        POST /article/{slug}/comments   (post comment)
-//!        POST /article/comments/{id}/delete  (delete comment)
-
 use serde::Deserialize;
 use topcoat::{
     Result,
@@ -17,21 +13,6 @@ use topcoat::{
 use crate::database::db;
 use crate::models::article::{Article, UserPreview}; // adjust paths to your crate
 
-// ---------------------------------------------------------------------------
-// Models
-// ---------------------------------------------------------------------------
-
-// #[derive(Clone, Debug)]
-// pub struct Comment {
-//     pub id: i64,
-//     pub article: String,
-//     pub username: String,
-//     pub body: String,
-//     pub created_at: String,
-//     pub user_image: Option<String>,
-// }
-
-// Path param: /article/{slug}
 path_param!(slug: String, error = not_found);
 
 // ---------------------------------------------------------------------------
@@ -56,9 +37,6 @@ async fn article_page(cx: &Cx) -> Result<impl View> {
     } else {
         None
     };
-    // let db = try_app_context::<AppState>(cx)
-    //     .map(|s| &s.db)
-    //     .ok_or_else(|| bad_request("database not configured"))?;
 
     let article = crate::models::article::Article::fetch_article(cx, &slug, user_id)
         .await
@@ -524,11 +502,6 @@ async fn delete_comment_route(cx: &Cx) -> Result<impl topcoat::router::response:
         return Err(topcoat::router::error::unauthorized().into());
     };
 
-    // let db = try_app_context::<AppState>(cx)
-    //     .map(|s| &s.db)
-    //     .ok_or_else(|| bad_request("database not configured"))?;
-
-    // Need article slug for redirect — look it up, or fall back to home
     let slug = crate::models::comment::delete_comment(cx, id, user_id)
         .await
         .map_err(|e| bad_request(format!("could not delete: {e}")))?;
@@ -539,75 +512,3 @@ async fn delete_comment_route(cx: &Cx) -> Result<impl topcoat::router::response:
 
     Ok(topcoat::router::error::see_other(redirect_to))
 }
-
-// ---------------------------------------------------------------------------
-// DB helpers
-// ---------------------------------------------------------------------------
-
-// async fn fetch_comments(db: &SqlitePool, slug: &str) -> Result<Vec<Comment>, sqlx::Error> {
-//     sqlx::query!(
-//         "
-//     SELECT c.id, c.article, c.body, c.created_at, u.username, u.image FROM Comments as c
-//         JOIN Users as u ON u.id=c.user_id
-//     WHERE c.article=$1
-//     ORDER BY c.created_at",
-//         slug
-//     )
-//     .map(|x| Comment {
-//         id: x.id,
-//         article: x.article,
-//         username: x.username,
-//         body: x.body,
-//         created_at: x.created_at.format(crate::models::DATE_FORMAT).to_string(),
-//         user_image: x.image,
-//     })
-//     .fetch_all(db)
-//     .await
-// }
-
-// async fn insert_comment(
-//     db: &SqlitePool,
-//     article: &str,
-//     user_id: i64,
-//     body: &str,
-// ) -> Result<(), sqlx::Error> {
-//     sqlx::query!(
-//         "INSERT INTO Comments(article, user_id, body) VALUES ($1, $2, $3)",
-//         article,
-//         user_id,
-//         body,
-//     )
-//     .execute(db)
-//     .await?;
-//     Ok(())
-// }
-
-// /// Deletes comment if owned by `user`. Returns article slug for redirect.
-// async fn delete_comment(
-//     db: &SqlitePool,
-//     id: i64,
-//     user_id: i64,
-// ) -> Result<Option<String>, sqlx::Error> {
-//     let row = sqlx::query!(
-//         "SELECT article FROM Comments WHERE id = $1 AND user_id = $2",
-//         id,
-//         user_id,
-//     )
-//     .fetch_optional(db)
-//     .await?;
-
-//     let Some(r) = row else {
-//         return Ok(None);
-//     };
-//     let slug = r.article;
-
-//     sqlx::query!(
-//         "DELETE FROM Comments WHERE id = $1 AND user_id = $2",
-//         id,
-//         user_id,
-//     )
-//     .execute(db)
-//     .await?;
-
-//     Ok(Some(slug))
-// }

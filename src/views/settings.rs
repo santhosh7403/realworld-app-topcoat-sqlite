@@ -1,4 +1,3 @@
-// use serde::Deserialize;
 use topcoat::{
     Result,
     context::Cx,
