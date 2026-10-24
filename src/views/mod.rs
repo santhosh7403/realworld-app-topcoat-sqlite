@@ -3,6 +3,7 @@ pub mod editor;
 pub mod home;
 pub mod login;
 pub mod logout;
+pub mod reset_password;
 pub mod settings;
 pub mod signup;
 // pub mod signup2;
