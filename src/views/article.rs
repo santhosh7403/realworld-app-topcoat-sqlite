@@ -257,7 +257,7 @@ async fn author_user_icon(user: UserPreview) -> Result<impl View> {
 }
 
 #[component]
-async fn comment_section(
+pub async fn comment_section(
     slug: String,
     comments: Vec<crate::models::comment::Comment>,
     logged_user: Option<String>,

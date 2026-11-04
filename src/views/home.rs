@@ -8,6 +8,9 @@ use topcoat::{
 };
 
 use crate::components::{article_preview::article_preview_list, prev_next_button::prev_next};
+use crate::views::article::comment_section;
+use topcoat::runtime::{shard, signal};
+use topcoat::view::ViewExt;
 
 #[query_params]
 struct HomeQuery {
@@ -76,6 +79,9 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
             }
         }
     };
+
+    let epoch = signal(cx, || 1i32);
+    let open_count = signal(cx, || 0i32);
 
     let tags = if search_mode {
         Vec::new()
@@ -188,8 +194,13 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
                         }
                     </div>
 
+                    #[key(article.slug.clone())]
                     for article in search_results.iter() {
-                        search_result_item(article: article.clone())
+                        search_result_item(
+                            article: article.clone(),
+                            epoch: epoch.clone(),
+                            open_count: open_count.clone()
+                        )
                     }
 
                     // Prev / Next for search
@@ -373,11 +384,18 @@ async fn tag_link(
 // ---- Search result item ----
 
 #[component]
-async fn search_result_item(article: MatchedArticles) -> Result<impl View> {
+async fn search_result_item(
+    cx: &Cx,
+    article: MatchedArticles,
+    epoch: topcoat::runtime::Signal<i32>,
+    open_count: topcoat::runtime::Signal<i32>,
+) -> Result<impl View> {
     let slug = article.slug.clone();
     let title = article.title.clone().unwrap_or_default();
     let description = article.description.clone().unwrap_or_default();
     let body = article.body.clone().unwrap_or_default();
+
+    let item_epoch = signal(cx, || 0i32);
 
     Ok(view! {
         <div class="mb-2 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md text-gray-800 dark:text-gray-200">
@@ -403,9 +421,113 @@ async fn search_result_item(article: MatchedArticles) -> Result<impl View> {
                         "Open in a new tab/window"
                     </a>
                 </div>
+                <div class="flex items-center gap-3">
+                    <button
+                        class="text-blue-600 underline cursor-pointer"
+                        type="button"
+                        @click=$(|_e| {
+                            let currently_open = if item_epoch.get() == 0i32 { false } else { item_epoch.get() == epoch.get() };
+                            if currently_open {
+                                item_epoch.set(0i32);
+                                let c = open_count.get();
+                                if c > 0i32 {
+                                    open_count.set(c - 1i32);
+                                }
+                            } else {
+                                item_epoch.set(epoch.get());
+                                open_count.set(open_count.get() + 1i32);
+                            }
+                        })
+                    >
+                        $(if item_epoch.get() == 0i32 { "Show Full Article" } else { if item_epoch.get() == epoch.get() { "Hide" } else { "Show Full Article" } })
+                    </button>
+                    <div :hidden=$( if open_count.get() > 1i32 { if item_epoch.get() == 0i32 { true } else { if item_epoch.get() == epoch.get() { false } else { true } } } else { true } )>
+                        <button
+                            class="text-blue-600 underline cursor-pointer"
+                            type="button"
+                            @click=$(|_e| {
+                                epoch.set(epoch.get() + 1i32);
+                                open_count.set(0i32);
+                            })
+                        >
+                            "Hide All"
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div :hidden=$( if item_epoch.get() == 0i32 { true } else { if item_epoch.get() == epoch.get() { false } else { true } } ) class="mt-3">
+                search_article_view(
+                    slug: slug.clone(),
+                    show: $( if item_epoch.get() == 0i32 { false } else { item_epoch.get() == epoch.get() } )
+                )
             </div>
         </div>
     })
+}
+
+#[shard]
+async fn search_article_view(cx: &Cx, slug: String, show: bool) -> Result<impl View> {
+    if !show {
+        return Ok(view! { <div></div> }.boxed());
+    }
+
+    let current_user = crate::auth::current_user(cx).await?;
+    let user_id = current_user.as_ref().map(|u| u.id);
+    let logged_user = current_user.map(|u| u.username);
+
+    let article = crate::models::article::Article::fetch_article(cx, &slug, user_id)
+        .await
+        .map_err(|_| topcoat::router::error::not_found())?;
+
+    let comments = crate::models::comment::fetch_comments(cx, &slug)
+        .await
+        .unwrap_or_default();
+
+    let is_owner = logged_user
+        .as_ref()
+        .map(|u| u == &article.author.username)
+        .unwrap_or(false);
+
+    Ok(view! {
+        <div class="mt-3 border-t dark:border-gray-700 pt-3">
+            <h2 class="text-xl font-bold mb-2 text-gray-800 dark:text-gray-200">
+                (article.title.clone())
+            </h2>
+            <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap mb-3">
+                (article.body.clone().unwrap_or_default())
+            </p>
+            if !article.tag_list.is_empty() {
+                <div class="flex flex-wrap gap-1 mb-3">
+                    <i class="fa-solid fa-hashtag py-1 text-gray-500"></i>
+                    for t in article.tag_list.clone() {
+                        if !t.is_empty() {
+                            <a
+                                href=(format!("/?page=0&amount=10&tag={t}&my_feed=false"))
+                                class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded text-xs"
+                            >
+                                (t)
+                            </a>
+                        }
+                    }
+                </div>
+            }
+            if is_owner {
+                <div class="mb-3 text-sm">
+                    <a
+                        href=(format!("/editor/{}", article.slug))
+                        class="text-blue-600 hover:underline"
+                    >
+                        "Edit article"
+                    </a>
+                </div>
+            }
+            comment_section(
+                slug: article.slug.clone(),
+                comments: comments,
+                logged_user: logged_user
+            )
+        </div>
+    }.boxed())
 }
 
 // ---------------------------------------------------------------------------
@@ -415,17 +537,57 @@ async fn search_result_item(article: MatchedArticles) -> Result<impl View> {
 async fn fetch_popular_tags(cx: &Cx) -> Result<Vec<String>, sqlx::Error> {
     let rows = sqlx::query!(
         r#"
-SELECT tag
-FROM ArticleTags
-GROUP BY tag
-ORDER BY COUNT(*) DESC
-LIMIT 20
+        SELECT
+            tag,
+            tag_count,
+            max_created_at
+        FROM (
+            SELECT
+                T1.tag,
+                COUNT(T1.article) AS tag_count,
+                MAX(T2.created_at) AS max_created_at
+            FROM
+                ArticleTags AS T1
+            JOIN
+                Articles AS T2
+            ON
+                T1.article = T2.slug
+            GROUP BY
+                T1.tag
+            ORDER BY
+                tag_count DESC
+            LIMIT 10
+        )
+
+        UNION
+
+        SELECT
+            tag,
+            tag_count,
+            max_created_at
+        FROM (
+            SELECT
+                T1.tag,
+                COUNT(T1.article) AS tag_count,
+                MAX(T2.created_at) AS max_created_at
+            FROM
+                ArticleTags AS T1
+            JOIN
+                Articles AS T2
+            ON
+                T1.article = T2.slug
+            GROUP BY
+                T1.tag
+            ORDER BY
+                max_created_at DESC
+            LIMIT 10
+        )
         "#
     )
     .fetch_all(db(cx))
     .await?;
 
-    Ok(rows.into_iter().map(|r| r.tag).collect())
+    Ok(rows.into_iter().filter_map(|r| r.tag).collect())
 }
 
 fn urlencoding(s: String) -> String {
