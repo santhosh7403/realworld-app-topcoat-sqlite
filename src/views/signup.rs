@@ -147,13 +147,11 @@ async fn signup(cx: &Cx) -> Result<impl View> {
                         >
                         <span
                             class="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer text-gray-500 dark:text-gray-400"
-                            @click=$(|_e: Event| passwd_visible.set(!passwd_visible.get()))
+                            @click=$(|_e: Event| passwd_visible.set(
+                                    !passwd_visible.get(),
+                                ))
                         >
-                            $(if passwd_visible.get() {
-                                "👁"
-                            } else {
-                                "👁‍🗨"
-                            })
+                            $(if passwd_visible.get() { "👁" } else { "👁‍🗨" })
                         </span>
                     </div>
 
@@ -179,7 +177,11 @@ async fn signup(cx: &Cx) -> Result<impl View> {
                                     } else if resp.kind == "create_error" {
                                         status.set(resp.message);
                                     } else {
-                                        status.set("There was some problem with signup, try again later".to_owned());
+                                        status.set(
+                                            "There was some problem with signup, try again later".to_owned(
+
+                                            ),
+                                        );
                                     }
                                 }
                             })
@@ -197,9 +199,7 @@ async fn signup(cx: &Cx) -> Result<impl View> {
 
                     <div>
                         <span
-                            :class=$(if status
-                                .get()
-                                .starts_with("Signup Successful") {
+                            :class=$(if status.get().starts_with("Signup Successful") {
                                 "font-medium text-green-500"
                             } else {
                                 "font-medium text-red-500"

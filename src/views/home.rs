@@ -8,6 +8,7 @@ use topcoat::{
 };
 
 use crate::components::{article_preview::article_preview_list, prev_next_button::prev_next};
+use crate::components::tooltip::{tooltip, tooltip_content};
 use crate::views::article::comment_section;
 use topcoat::runtime::{shard, signal};
 use topcoat::view::ViewExt;
@@ -128,7 +129,11 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
                         // Search box
                         <form method="get" action="/" class="flex items-center gap-1">
                             <input type="hidden" name="page" value="0" />
-                            <input type="hidden" name="amount" value=(amount.to_string()) />
+                            <input
+                                type="hidden"
+                                name="amount"
+                                value=(amount.to_string())
+                            />
                             <input
                                 class="shadow appearance-none bg-white dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded py-1 px-3 text-gray-700 leading-tight focus:outline-none"
                                 type="text"
@@ -137,9 +142,12 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
                                 placeholder="Search string"
                                 value=(search_query.clone())
                             />
-                            <button type="submit" class="px-2 hover:text-blue-500">
-                                <i class="fas fa-magnifying-glass"></i>
-                            </button>
+                            tooltip(
+                                <button type="submit" class="px-2 hover:text-blue-500">
+                                    <i class="fas fa-magnifying-glass"></i>
+                                </button>
+                                tooltip_content("Search")
+                            )
                         </form>
                         <div class="min-w-[7rem]">
                             if search_mode {
@@ -185,7 +193,9 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
                                     match (page, search_total < amount) {
                                         (0, true) => search_total.to_string(),
                                         (0, false) => amount.to_string(),
-                                        (_, _) => (std::cmp::min((page + 1) * amount, search_total)).to_string(),
+                                        (_, _) => (std::cmp::min((page + 1) * amount, search_total)).to_string(
+
+                                        ),
                                     }
                                 })
                                 " of "
@@ -207,15 +217,26 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
                     <div class="flex gap-4 mt-4 px-2 justify-end">
                         if page > 0 {
                             <a
-                                href=(format!("/?search={}&page={}&amount={}", urlencoding(search_query.clone()), (page - 1).max(0), amount))
+                                href=(format!(
+                                    "/?search={}&page={}&amount={}",
+                                    urlencoding(search_query.clone()),
+                                    (page - 1).max(0),
+                                    amount,
+                                ))
                                 class="px-4 cursor-pointer hover:text-blue-500 border dark:border-gray-600 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
                             >
                                 "<< Previous page"
                             </a>
                         }
-                        if search_results.len() as i64 >= amount && search_total > (page + 1) * amount {
+                        if search_results.len() as i64 >= amount
+                            && search_total > (page + 1) * amount {
                             <a
-                                href=(format!("/?search={}&page={}&amount={}", urlencoding(search_query.clone()), page + 1, amount))
+                                href=(format!(
+                                    "/?search={}&page={}&amount={}",
+                                    urlencoding(search_query.clone()),
+                                    page + 1,
+                                    amount,
+                                ))
                                 class="px-4 cursor-pointer hover:text-blue-500 border dark:border-gray-600 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
                             >
                                 "Next page >>"
@@ -398,7 +419,9 @@ async fn search_result_item(
     let item_epoch = signal(cx, || 0i32);
 
     Ok(view! {
-        <div class="mb-2 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md text-gray-800 dark:text-gray-200">
+        <div
+            class="mb-2 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md text-gray-800 dark:text-gray-200"
+        >
             <p>
                 <span class="font-bold">"Title: "</span>
                 <span>(Unescaped::new_unchecked(title))</span>
@@ -426,7 +449,11 @@ async fn search_result_item(
                         class="text-blue-600 underline cursor-pointer"
                         type="button"
                         @click=$(|_e| {
-                            let currently_open = if item_epoch.get() == 0i32 { false } else { item_epoch.get() == epoch.get() };
+                            let currently_open = if item_epoch.get() == 0i32 {
+                                false
+                            } else {
+                                item_epoch.get() == epoch.get()
+                            };
                             if currently_open {
                                 item_epoch.set(0i32);
                                 let c = open_count.get();
@@ -439,9 +466,27 @@ async fn search_result_item(
                             }
                         })
                     >
-                        $(if item_epoch.get() == 0i32 { "Show Full Article" } else { if item_epoch.get() == epoch.get() { "Hide" } else { "Show Full Article" } })
+                        $(if item_epoch.get() == 0i32 {
+                            "Show Full Article"
+                        } else {
+                            if item_epoch.get() == epoch.get() {
+                                "Hide"
+                            } else {
+                                "Show Full Article"
+                            }
+                        })
                     </button>
-                    <div :hidden=$( if open_count.get() > 1i32 { if item_epoch.get() == 0i32 { true } else { if item_epoch.get() == epoch.get() { false } else { true } } } else { true } )>
+                    <div
+                        :hidden=$(if open_count.get() > 1i32 {
+                            if item_epoch.get() == 0i32 {
+                                true
+                            } else {
+                                if item_epoch.get() == epoch.get() { false } else { true }
+                            }
+                        } else {
+                            true
+                        })
+                    >
                         <button
                             class="text-blue-600 underline cursor-pointer"
                             type="button"
@@ -455,10 +500,21 @@ async fn search_result_item(
                     </div>
                 </div>
             </div>
-            <div :hidden=$( if item_epoch.get() == 0i32 { true } else { if item_epoch.get() == epoch.get() { false } else { true } } ) class="mt-3">
+            <div
+                :hidden=$(if item_epoch.get() == 0i32 {
+                    true
+                } else {
+                    if item_epoch.get() == epoch.get() { false } else { true }
+                })
+                class="mt-3"
+            >
                 search_article_view(
                     slug: slug.clone(),
-                    show: $( if item_epoch.get() == 0i32 { false } else { item_epoch.get() == epoch.get() } )
+                    show: $(if item_epoch.get() == 0i32 {
+                        false
+                    } else {
+                        item_epoch.get() == epoch.get()
+                    })
                 )
             </div>
         </div>

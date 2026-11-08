@@ -11,6 +11,7 @@ use topcoat::{
 };
 
 use crate::database::db;
+use crate::components::tooltip::{tooltip, tooltip_content};
 use crate::models::article::{Article, UserPreview}; // adjust paths to your crate
 
 path_param!(slug: String, error = not_found);
@@ -57,58 +58,75 @@ async fn article_page(cx: &Cx) -> Result<impl View> {
                 class="z-70 block w-full max-w-6xl rounded-lg bg-white dark:bg-gray-800 p-4 shadow-lg mx-auto"
             >
                 // Meta row
-                article_meta(
-                    article: article.clone()
-                )
+                article_meta(article: article.clone())
 
                 // Favorite / Follow
                 <div class="flex flex-wrap items-center gap-4 mb-5">
-                    if logged_user.is_some() && logged_user.as_ref() != Some(&article.author.username) {
-                        <form method="post" action=(format!("/article/{}/favorite", article.slug))>
-                            <button
-                                type="submit"
-                                class=(if article.fav {
-                                    "text-yellow-500 hover:text-gray-500 transition-colors duration-200"
-                                } else {
-                                    "text-gray-500 hover:text-yellow-500 transition-colors duration-200"
-                                })
-                            >
-                                <i
+                    if logged_user.is_some()
+                        && logged_user.as_ref() != Some(&article.author.username) {
+                        <form
+                            method="post"
+                            action=(format!("/article/{}/favorite", article.slug))
+                        >
+                            tooltip(
+                                <button
+                                    type="submit"
                                     class=(if article.fav {
-                                        "fas fa-star"
+                                        "text-yellow-500 hover:text-gray-500 transition-colors duration-200"
                                     } else {
-                                        "far fa-star"
+                                        "text-gray-500 hover:text-yellow-500 transition-colors duration-200"
                                     })
-                                ></i>
-                                " Favourite"
-                            </button>
+                                >
+                                    <i
+                                        class=(if article.fav {
+                                            "fas fa-star"
+                                        } else {
+                                            "far fa-star"
+                                        })
+                                    ></i>
+                                    " Favourite"
+                                </button>
+                                tooltip_content("Favorite article")
+                            )
                         </form>
-                        <form method="post" action=(format!("/article/{}/follow", article.slug))>
-                            <button
-                                type="submit"
-                                class=(if article.author.following {
-                                    "text-yellow-500 hover:text-gray-400"
-                                } else {
-                                    "text-gray-500 hover:text-yellow-500"
-                                })
-                            >
-                                <i
+                        <form
+                            method="post"
+                            action=(format!("/article/{}/follow", article.slug))
+                        >
+                            tooltip(
+                                <button
+                                    type="submit"
                                     class=(if article.author.following {
-                                        "fa-solid fa-person-circle-minus"
+                                        "text-yellow-500 hover:text-gray-400"
                                     } else {
-                                        "fa-solid fa-person-circle-plus"
+                                        "text-gray-500 hover:text-yellow-500"
                                     })
-                                ></i>
-                                " "
-                                (if article.author.following {
-                                    format!("Unfollow {}", article.author.username)
-                                } else {
-                                    format!("Follow {}", article.author.username)
-                                })
-                            </button>
+                                >
+                                    <i
+                                        class=(if article.author.following {
+                                            "fa-solid fa-person-circle-minus"
+                                        } else {
+                                            "fa-solid fa-person-circle-plus"
+                                        })
+                                    ></i>
+                                    " "
+                                    (if article.author.following {
+                                        format!("Unfollow {}", article.author.username)
+                                    } else {
+                                        format!("Follow {}", article.author.username)
+                                    })
+                                </button>
+                                tooltip_content("Follow author")
+                            )
                         </form>
                     }
-                    <span class=(if article.favorites_count > 0 { "text-yellow-500" } else { "" })>
+                    <span
+                        class=(if article.favorites_count > 0 {
+                            "text-yellow-500"
+                        } else {
+                            ""
+                        })
+                    >
                         "Favourites: "
                         (article.favorites_count.to_string())
                     </span>
@@ -350,13 +368,16 @@ async fn comment_item(
                     </div>
                     if can_delete {
                         <form method="post" action=(delete_action)>
-                            <button
-                                type="submit"
-                                class="text-red-400 hover:rounded hover:border hover:bg-red-100 px-1"
-                            >
-                                <i class="fas fa-trash"></i>
-                                <span class="px-1">"Delete"</span>
-                            </button>
+                            tooltip(
+                                <button
+                                    type="submit"
+                                    class="text-red-400 hover:rounded hover:border hover:bg-red-100 px-1"
+                                >
+                                    <i class="fas fa-trash"></i>
+                                    <span class="px-1">"Delete"</span>
+                                </button>
+                                tooltip_content("Delete comment")
+                            )
                         </form>
                     }
                 </div>

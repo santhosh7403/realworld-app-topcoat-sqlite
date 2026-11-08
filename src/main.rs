@@ -71,7 +71,11 @@ async fn root_layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
     let user_in = signal(cx, || current_user);
     Ok(view! {
         <!DOCTYPE html>
-        <html lang="en" class=(theme_class) data-server-theme=(if server_theme { "true" } else { "" })>
+        <html
+            lang="en"
+            class=(theme_class)
+            data-server-theme=(if server_theme { "true" } else { "" })
+        >
             <head>
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />

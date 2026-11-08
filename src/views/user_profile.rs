@@ -85,8 +85,6 @@ async fn profile(cx: &Cx) -> Result<impl View> {
 
 #[component]
 async fn profile_page(cx: &Cx, username: &str) -> Result<impl View> {
-    // For demo we hard-code pagination; in a real app read from query or signals
-
     let q: ProfileQuery = parse_query_params(cx).map_err(|e| {
         // turn parse failure into a 400 (adjust to your preferred error helper)
         topcoat::router::error::bad_request(format!("invalid query: {e}"))
