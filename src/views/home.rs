@@ -7,8 +7,8 @@ use topcoat::{
     view::{Unescaped, View, component, view},
 };
 
-use crate::components::{article_preview::article_preview_list, prev_next_button::prev_next};
 use crate::components::tooltip::{tooltip, tooltip_content};
+use crate::components::{article_preview::article_preview_list, prev_next_button::prev_next};
 use crate::views::article::comment_section;
 use topcoat::runtime::{shard, signal};
 use topcoat::view::ViewExt;
@@ -149,7 +149,7 @@ pub async fn home(cx: &Cx) -> Result<impl View> {
                                 tooltip_content("Search")
                             )
                         </form>
-                        <div class="min-w-[7rem]">
+                        <div class="min-w-28">
                             if search_mode {
                                 <a
                                     href="/"

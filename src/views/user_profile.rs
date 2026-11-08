@@ -73,7 +73,7 @@ async fn profile(cx: &Cx) -> Result<impl View> {
     Ok(view! {
         <div class="bg-gray-200 dark:bg-gray-900">
             <div
-                class="mx-auto sm:px-6 lg:px-8 bg-gray-200 dark:bg-gray-900 px-2 py-2 sm:px-0 text-gray-800 dark:text-gray-200"
+                class="mx-auto lg:px-8 bg-gray-200 dark:bg-gray-900 px-2 py-2 sm:px-0 text-gray-800 dark:text-gray-200"
             >
                 profile_page(username: username)
             </div>
