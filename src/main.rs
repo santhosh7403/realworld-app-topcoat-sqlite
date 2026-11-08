@@ -192,7 +192,7 @@ async fn navbar(user_in: &topcoat::runtime::Signal<Option<UserPreview>>) -> Resu
             <div
                 class="bg-gray-800 text-white shadow-lg rounded-b-xl px-4 py-3 md:py-4"
             >
-                <div class="flex justify-around items-center max-w-7xl mx-auto">
+                <div class="flex flex-wrap justify-around items-center gap-2 max-w-7xl mx-auto">
                     // Home
                     <a href="/" class="navitem group">
                         <i class="fas fa-home navitem-icon"></i>

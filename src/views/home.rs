@@ -434,7 +434,7 @@ async fn search_result_item(
                 <span class="font-bold">"Body: "</span>
                 <span>(Unescaped::new_unchecked(body))</span>
             </p>
-            <div class="flex justify-between mt-2">
+            <div class="flex flex-wrap justify-between gap-2 mt-2">
                 <div>
                     <a
                         href=(format!("/article/{}", slug))

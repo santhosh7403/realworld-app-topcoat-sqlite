@@ -55,7 +55,7 @@ fn login_view(cx: &Cx, error: Option<String>) -> impl View {
             class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-60"
         >
             <div
-                class="block rounded-lg bg-white dark:bg-gray-800 w-2/5 p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] z-70"
+                class="block rounded-lg bg-white dark:bg-gray-800 w-full max-w-md p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] z-70"
             >
                 <h5
                     class="mb-5 text-xl font-medium leading-tight text-gray-800 dark:text-gray-200"
@@ -106,7 +106,7 @@ fn login_view(cx: &Cx, error: Option<String>) -> impl View {
                         </span>
                     </div>
 
-                    <div class="flex flex-row-reverse space-x-4 space-x-reverse">
+                    <div class="flex flex-wrap flex-row-reverse gap-4">
                         <button
                             type="submit"
                             class="bg-blue-700 hover:bg-blue-800 px-5 py-2 text-white rounded-lg"

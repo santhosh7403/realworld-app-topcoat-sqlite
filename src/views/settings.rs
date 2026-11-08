@@ -144,7 +144,7 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
         >
             <title>"Settings"</title>
             <div
-                class="block rounded-lg bg-white dark:bg-gray-800 w-2/5 p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] z-70"
+                class="block rounded-lg bg-white dark:bg-gray-800 w-full max-w-md p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] z-70"
             >
                 <h5
                     class="mb-5 text-xl font-medium leading-tight text-neutral-800 dark:text-gray-200"
@@ -340,7 +340,7 @@ pub async fn settings_page(cx: &Cx) -> Result<impl View> {
                         </p>
                     </div>
 
-                    <div class="flex justify-between mb-5">
+                    <div class="flex flex-wrap justify-between gap-2 mb-5">
                         <button
                             type="button"
                             :disabled=$(if image.get() != orig_image.get() {

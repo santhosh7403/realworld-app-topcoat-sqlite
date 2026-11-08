@@ -18,7 +18,7 @@ async fn article_preview(article: Article) -> Result<impl View> {
     let href = format!("/article/{}", article.slug);
     Ok(view! {
         <div class="mb-2 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <div class="flex items-center gap-4 mb-4 text-gray-700 dark:text-gray-300">
+            <div class="flex flex-wrap items-center gap-4 mb-4 text-gray-700 dark:text-gray-300">
                 <a
                     href=(format!("/profile/{}", article.author.username))
                     class="flex items-center gap-2 hover:underline"
@@ -75,7 +75,7 @@ async fn article_preview(article: Article) -> Result<impl View> {
             </a>
 
             <div
-                class="flex justify-between items-end text-gray-600 dark:text-gray-400"
+                class="flex flex-wrap justify-between items-end gap-2 text-gray-600 dark:text-gray-400"
             >
                 <a href=(href) class="hover:text-blue-600 hover:underline">
                     "Read more..."

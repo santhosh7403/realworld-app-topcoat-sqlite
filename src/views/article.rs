@@ -61,7 +61,7 @@ async fn article_page(cx: &Cx) -> Result<impl View> {
                 article_meta(article: article.clone(), logged_user: logged_user.clone())
 
                 // Title + author + back
-                <div class="flex justify-between mb-5">
+                <div class="flex flex-col sm:flex-row sm:justify-between gap-4 mb-5">
                     <div>
                         <div class="mb-2">
                             <h1
@@ -353,7 +353,7 @@ async fn comment_item(
                     (comment.username.clone())
                 </a>
             </div>
-            <div class="flex grow justify-between gap-4">
+            <div class="flex flex-col sm:flex-row sm:justify-between gap-4">
                 <p class="text-neutral-800 dark:text-gray-300">
                     (comment.body.clone())
                 </p>

@@ -127,7 +127,7 @@ async fn profile_page(cx: &Cx, username: &str) -> Result<impl View> {
 
     Ok(view! {
         <div class="mb-5">
-            <div class="flex justify-between px-2 bg-gray-200 dark:bg-gray-900 py-2">
+            <div class="flex flex-wrap justify-between gap-2 px-2 bg-gray-200 dark:bg-gray-900 py-2">
                 <div class="flex text-gray-800 dark:text-gray-200">
                     user_articles_tab(user: username, active: !favourites)
                     favourited_articles_tab(user: username, active: favourites)
@@ -138,8 +138,8 @@ async fn profile_page(cx: &Cx, username: &str) -> Result<impl View> {
 
             article_preview_list(articles: articles)
 
-            <div class="flex justify-between">
-                <div class="flex gap-4 mb-4">
+            <div class="flex flex-col sm:flex-row sm:justify-between gap-4">
+                <div class="flex flex-wrap gap-4 mb-4">
                     // prev_next_button(...)
                     prev_next_profile(
                         page: page,
@@ -221,7 +221,7 @@ async fn user_info(cx: &Cx, username: &str) -> Result<impl View> {
         <div
             class="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 mb-2 p-4"
         >
-            <div class="mb-5 px-5 flex justify-between">
+            <div class="mb-5 px-5 flex flex-col sm:flex-row sm:justify-between gap-2">
                 <h2 class="font-bold text-xl underline">
                     "Profile data of User - "
                     (name.clone())
@@ -229,7 +229,7 @@ async fn user_info(cx: &Cx, username: &str) -> Result<impl View> {
                 back_to_home()
             </div>
 
-            <div class="flex">
+            <div class="flex flex-wrap items-center gap-2">
                 <div class="mb-4">
                     <img src=(image) class="w-10 h-10 rounded-full" />
                 </div>
