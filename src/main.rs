@@ -87,7 +87,7 @@ async fn root_layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                 <script src="https://cdn.tailwindcss.com"></script>
                 <script>"tailwind.config = { darkMode: 'class' }"</script>
 
-                // Font Awesome icons (same as the Dioxus original)
+                // Font Awesome icons
                 <link
                     rel="stylesheet"
                     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
@@ -179,7 +179,7 @@ async fn root_layout(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
 }
 
 // ---------------------------------------------------------------------------
-// Navbar component (mirrors the Dioxus NavBar structure)
+// Navbar component
 // ---------------------------------------------------------------------------
 
 #[component]
