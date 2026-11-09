@@ -211,4 +211,37 @@ LIMIT $1 OFFSET $2",
         .fetch_all(db(cx))
         .await
     }
+
+    /// Deletes article if owned by `user_id`. Returns true if deleted.
+    pub async fn delete_article(cx: &Cx, slug: &str, user_id: i64) -> Result<bool, sqlx::Error> {
+        let row = sqlx::query!(
+            "SELECT slug FROM Articles WHERE slug = $1 AND author_id = $2",
+            slug,
+            user_id,
+        )
+        .fetch_optional(db(cx))
+        .await?;
+
+        let Some(_) = row else {
+            return Ok(false);
+        };
+
+        // Delete related data first (comments, favorites, tags)
+        sqlx::query!("DELETE FROM Comments WHERE article = $1", slug)
+            .execute(db(cx))
+            .await?;
+        sqlx::query!("DELETE FROM FavArticles WHERE article = $1", slug)
+            .execute(db(cx))
+            .await?;
+        sqlx::query!("DELETE FROM ArticleTags WHERE article = $1", slug)
+            .execute(db(cx))
+            .await?;
+
+        // Delete the article
+        sqlx::query!("DELETE FROM Articles WHERE slug = $1 AND author_id = $2", slug, user_id)
+            .execute(db(cx))
+            .await?;
+
+        Ok(true)
+    }
 }

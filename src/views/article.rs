@@ -116,6 +116,22 @@ async fn article_page(cx: &Cx) -> Result<impl View> {
                             <i class="fa-solid fa-pen-to-square"></i>
                             " Edit article"
                         </a>
+                        <form
+                            method="post"
+                            action=(format!("/article/{}/delete", article.slug))
+                            onsubmit="return confirm('Are you sure you want to delete this article?');"
+                        >
+                            tooltip(
+                                <button
+                                    type="submit"
+                                    class="text-red-600 hover:underline"
+                                >
+                                    <i class="fa-solid fa-trash"></i>
+                                    " Delete article"
+                                </button>
+                                tooltip_content("Delete article")
+                            )
+                        </form>
                     </div>
                 }
 
@@ -528,4 +544,20 @@ async fn delete_comment_route(cx: &Cx) -> Result<impl topcoat::router::response:
         .unwrap_or_else(|| "/".to_string());
 
     Ok(topcoat::router::error::see_other(redirect_to))
+}
+
+#[route(POST "/article/{slug}/delete")]
+async fn delete_article_route(cx: &Cx) -> Result<impl topcoat::router::response::IntoResponse> {
+    let slug = path_param::<Slug>(cx)?.clone();
+
+    let current_user = crate::auth::current_user(cx).await?;
+    let Some(user_id) = current_user.map(|u| u.id) else {
+        return Err(topcoat::router::error::unauthorized().into());
+    };
+
+    Article::delete_article(cx, &slug, user_id)
+        .await
+        .map_err(|e| bad_request(format!("could not delete article: {e}")))?;
+
+    Ok(topcoat::router::error::see_other("/"))
 }
