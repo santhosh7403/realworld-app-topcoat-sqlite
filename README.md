@@ -12,6 +12,12 @@ The goal is to keep the app practical and easy to run locally, while exploring h
 
 <!-- Add 1–2 screenshots here to show the home/feed/article views. -->
 
+<img width="1895" height="1035" alt="image" src="https://github.com/user-attachments/assets/49273829-16e1-4a77-bb05-7daea5afa822" />
+
+<img width="1895" height="1035" alt="image" src="https://github.com/user-attachments/assets/353b6eb9-0b84-4e2e-9c57-c27a1e9d7754" />
+
+
+
 **App access (local):**
 
 ```bash
@@ -66,6 +72,17 @@ For a Topcoat development workflow (if you use the CLI), you can also try:
 cargo topcoat dev
 # or
 topcoat dev
+
+santhosh@fedora:~/my_github_repos/realworld-app-topcoat-sqlite$ topcoat dev
+
+  topcoat dev server
+  watching for file changes...
+  press r to reload
+
+  ready on http://127.0.0.1:3000
+
+  no changes; application up to date
+
 ```
 
 Open the address printed by the server in your browser.
